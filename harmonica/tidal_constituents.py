@@ -6,52 +6,53 @@ import pandas as pd
 import sys
 
 
+# Dictionary of NOAA constituent speed constants (deg/hr)
+# Source: https://tidesandcurrents.noaa.gov
+# The speed is the rate change in the phase of a constituent, and is equal to 360 degrees divided by the
+# constituent period expressed in hours
+NOAA_SPEEDS = {
+    'OO1': 16.139101,
+    '2Q1': 12.854286,
+    '2MK3': 42.92714,
+    '2N2': 27.895355,
+    '2SM2': 31.015896,
+    'K1': 15.041069,
+    'K2': 30.082138,
+    'J1': 15.5854435,
+    'L2': 29.528479,
+    'LAM2': 29.455626,
+    'M1': 14.496694,
+    'M2': 28.984104,
+    'M3': 43.47616,
+    'M4': 57.96821,
+    'M6': 86.95232,
+    'M8': 115.93642,
+    'MF': 1.0980331,
+    'MK3': 44.025173,
+    'MM': 0.5443747,
+    'MN4': 57.423832,
+    'MS4': 58.984104,
+    'MSF': 1.0158958,
+    'MU2': 27.968208,
+    'N2': 28.43973,
+    'NU2': 28.512583,
+    'O1': 13.943035,
+    'P1': 14.958931,
+    'Q1': 13.398661,
+    'R2': 30.041067,
+    'RHO': 13.471515,
+    'S1': 15.0,
+    'S2': 30.0,
+    'S4': 60.0,
+    'S6': 90.0,
+    'SA': 0.0410686,
+    'SSA': 0.0821373,
+    'T2': 29.958933,
+}
+
+
 class Constituents:
     """Harmonica tidal constituents."""
-
-    # Dictionary of NOAA constituent speed constants (deg/hr)
-    # Source: https://tidesandcurrents.noaa.gov
-    # The speed is the rate change in the phase of a constituent, and is equal to 360 degrees divided by the
-    # constituent period expressed in hours
-    NOAA_SPEEDS = {
-        'OO1': 16.139101,
-        '2Q1': 12.854286,
-        '2MK3': 42.92714,
-        '2N2': 27.895355,
-        '2SM2': 31.015896,
-        'K1': 15.041069,
-        'K2': 30.082138,
-        'J1': 15.5854435,
-        'L2': 29.528479,
-        'LAM2': 29.455626,
-        'M1': 14.496694,
-        'M2': 28.984104,
-        'M3': 43.47616,
-        'M4': 57.96821,
-        'M6': 86.95232,
-        'M8': 115.93642,
-        'MF': 1.0980331,
-        'MK3': 44.025173,
-        'MM': 0.5443747,
-        'MN4': 57.423832,
-        'MS4': 58.984104,
-        'MSF': 1.0158958,
-        'MU2': 27.968208,
-        'N2': 28.43973,
-        'NU2': 28.512583,
-        'O1': 13.943035,
-        'P1': 14.958931,
-        'Q1': 13.398661,
-        'R2': 30.041067,
-        'RHO': 13.471515,
-        'S1': 15.0,
-        'S2': 30.0,
-        'S4': 60.0,
-        'S6': 90.0,
-        'SA': 0.0410686,
-        'SSA': 0.0821373,
-        'T2': 29.958933,
-    }
 
     def __init__(self):
         # constituent information dataframe:
@@ -135,7 +136,7 @@ class Constituents:
                     # phase
                     ph + (360. if positive_ph and ph < 0 else 0),
                     # speed
-                    self.NOAA_SPEEDS[c]
+                    NOAA_SPEEDS[c]
                 ]
 
         return self
