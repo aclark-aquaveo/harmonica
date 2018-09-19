@@ -12,18 +12,15 @@ from zipfile import ZipFile
 import pandas as pd
 
 from .tidal_constituents import NOAA_SPEEDS
-from .tidal_database import TidalDB
+from .tidal_database import convert_coords, TidalDB
 
 
 class TidalDBAdcircEnum(Enum):
     """Enum for specifying the type of an ADCIRC database.
 
-    North West Atlantic and North East Pacific are the only valid options.
-
-    Attributes:
-        TIDE_NWAT: North West Atlantic database
-        TIDE_NEPAC: North East Pacific database
-        TIDE_NONE: Enum end - legacy from SMS port.
+    TIDE_NWAT = North West Atlantic database
+    TIDE_NEPAC = North East Pacific database
+    TIDE_NONE = Enum end - legacy from SMS port.
 
     """
     TIDE_NWAT = 0  # North West Atlantic Tidal Database
@@ -39,6 +36,8 @@ class AdcircDB(TidalDB):
         exe_with_path (str): The path of the ADCIRC executable.
         db_region (:obj: `TidalDBAdcircEnum`): The type of database.
         cons (:obj:`list` of :obj:`str`): List of the constituents that are valid for the ADCIRC database
+        data (:obj:`list` of :obj:`pandas.DataFrame`): List of the constituent component DataFrames with one
+            per point location requested from get_components(). Intended return value of get_components().
         grid_no_path (str): Filename of *.grd file to use.
         harm_no_path (str): Filename of *.tdb file to use.
         temp_folder (str): Temporary folder to hold files in while running executables.
@@ -60,6 +59,7 @@ class AdcircDB(TidalDB):
         self.exe_with_path = exe_with_path
         self.db_region = db_region
         self.cons = ['M2', 'S2', 'N2', 'K1', 'M4', 'O1', 'M6', 'Q1', 'K2']
+        self.data = []
         if self.db_region == TidalDBAdcircEnum.TIDE_NWAT:
             self.grid_no_path = 'ec2001.grd'
             self.harm_no_path = 'ec2001.tdb'
@@ -87,23 +87,39 @@ class AdcircDB(TidalDB):
         or Pacific database is download depends on how the object was constructed.
 
         """
+        if not os.path.isdir(self.work_path):
+            self.work_path = os.getcwd()
+
         if not os.path.isfile(self.exe_with_path):  # Make sure the executable exists
             # Download from the Aquaveo website
             if self.db_region == TidalDBAdcircEnum.TIDE_NWAT:  # Download the ADCIRC Atlantic database
                 adcirc_db_url = 'http://sms.aquaveo.com/adcircnwattides.zip'
                 basename = 'adcircnwattides'
+                if not self.exe_with_path:  # check the local directory
+                    local_exe = os.path.join(os.getcwd(), "adcircnwattides/adcircnwattides.exe")
+                    if os.path.isfile(local_exe):
+                        self.exe_with_path = local_exe
+                        return
             else:  # Download the ADCIRC Pacific database
                 adcirc_db_url = 'http://sms.aquaveo.com/adcircnepactides.zip'
                 basename = 'adcircnepactides'
+                if not self.exe_with_path:  # check the local directory
+                    local_exe = os.path.join(os.getcwd(), "adcircnepactides/adcircnepactides.exe")
+                    if os.path.isfile(local_exe):
+                        self.exe_with_path = local_exe
+                        return
             zip_file = os.path.join(self.work_path, basename + '.zip')
+            print("Downloading resource: {}".format(adcirc_db_url))
             with urllib.request.urlopen(adcirc_db_url) as response, open(zip_file, 'wb') as out_file:
                 shutil.copyfileobj(response, out_file)
             # Unzip the files
             dest_path = os.path.join(self.work_path, basename)
             if not os.path.isdir(dest_path):
                 os.mkdir(dest_path)
+            print("Unzipping files to: {}".format(dest_path))
             with ZipFile(zip_file, 'r') as unzipper:
                 unzipper.extractall(path=dest_path)
+            print("Deleting zip file: {}".format(zip_file))
             os.remove(zip_file)  # delete the zip file
             self.exe_with_path = os.path.join(dest_path, basename + ".exe")
 
@@ -111,8 +127,8 @@ class AdcircDB(TidalDB):
         """Get the amplitude, phase, and speed for the given constituents at the given points.
 
         Args:
-            locs (:obj:`list` of :obj:`tuple` of :obj:`float`): List of the point locations to get
-                amplitude and phase for. e.g. [(x1, y1), (x2, y2)]
+            locs (:obj:`list` of :obj:`tuple` of :obj:`float`): latitude [-90, 90] and longitude [-180 180] or [0 360]
+                of the requested points.
             cons (:obj:`list` of :obj:`str`, optional): List of the constituent names to get amplitude and phase for. If
                 not supplied, all valid constituents will be extracted.
             positive_ph (bool, optional): Indicate if the returned phase should be all positive [0 360] (True) or
@@ -122,6 +138,7 @@ class AdcircDB(TidalDB):
             :obj:`list` of :obj:`pandas.DataFrame`: A list of dataframes of constituent information including
                 amplitude (meters), phase (degrees) and speed (degrees/hour, UTC/GMT). The list is parallel with locs,
                 where each element in the return list is the constituent data for the corresponding element in locs.
+                Note that function uses fluent interface pattern.
 
         """
         # pre-allocate the return value
@@ -129,7 +146,12 @@ class AdcircDB(TidalDB):
         if not cons:
             cons = self.cons  # Get all constituents by default
 
-        con_data = [pd.DataFrame(columns=['amplitude', 'phase', 'speed']) for _ in range(len(locs))]
+        # Make sure point locations are valid lat/lon
+        locs = convert_coords(locs)
+        if not locs:
+            return self  # ERROR: Not in latitude/longitude
+
+        self.data = [pd.DataFrame(columns=['amplitude', 'phase', 'speed']) for _ in range(len(locs))]
         for con in cons:
             if self.have_constituent(con):
                 con = con.lower()
@@ -144,7 +166,7 @@ class AdcircDB(TidalDB):
                 f.write("{}\n".format(str(len(locs))))
                 for pt in locs:
                     # 15.10f
-                    f.write("{:15.10f}{:15.10f}\n".format(pt[0], pt[1]))
+                    f.write("{:15.10f}{:15.10f}\n".format(pt[1], pt[0]))
             # copy the executable and .grd and .tdb file to the temp folder
             temp_exe_with_path = os.path.join(self.temp_folder, os.path.basename(self.exe_with_path))
             temp_grd_with_path = os.path.join(self.temp_folder, self.grid_no_path)
@@ -201,9 +223,9 @@ class AdcircDB(TidalDB):
                         else:
                             # we have a problem
                             continue
-                        con_data[curr_pt].loc[con_name.upper()] = [amp,
-                                                                   pha + (360.0 if positive_ph and pha < 0 else 0),
-                                                                   NOAA_SPEEDS[con_name.upper()]]
+                        self.data[curr_pt].loc[con_name.upper()] = [amp,
+                                                                    pha + (360.0 if positive_ph and pha < 0 else 0),
+                                                                    NOAA_SPEEDS[con_name.upper()]]
                         curr_pt += 1
         finally:
             # delete the temp directory
@@ -213,7 +235,7 @@ class AdcircDB(TidalDB):
             os.chdir(self.work_path)
             os.rmdir(self.temp_folder)
 
-        return con_data
+        return self
 
     def have_constituent(self, a_name):
         """Check if teh given constituent is supported by the ADCIRC tidal database.

@@ -6,12 +6,42 @@ import math
 
 import pandas as pd
 
+
+NCNST = 37
+
+
+def convert_coords(coords):
+    """Convert latitude coordinates to [-180, 180].
+
+    Args:
+        coords (:obj:`list` of :obj:`tuple` of :obj:`float`): latitude [-90, 90] and longitude [-180 180] or [0 360]
+            of the requested point.
+
+    Returns:
+        :obj:`list` of :obj:`tuple` of :obj:`float`: The list of converted coordinates. None if a coordinate out of
+            range was encountered
+
+    """
+    # Make sure point locations are valid lat/lon
+    for idx, pt in enumerate(coords):
+        y_lat = pt[0]
+        x_lon = pt[1]
+        if x_lon < 0.0:
+            x_lon = x_lon + 360.0
+        if x_lon > 180.0:
+            x_lon = x_lon - 360.0
+        if x_lon > 180.0 or x_lon < -180.0 or y_lat > 90.0 or y_lat < -90.0:
+            # ERROR: Not in latitude/longitude
+            return None
+        else:
+            coords[idx] = (y_lat, x_lon)
+    return coords
+
+
 class TidalDBEnum(Enum):
     TIDAL_DB_LEPROVOST = 0
     TIDAL_DB_ADCIRC = 1
 
-
-NCNST = 37
 
 
 class OrbitVariables(object):

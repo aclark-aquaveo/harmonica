@@ -13,15 +13,17 @@ from zipfile import ZipFile
 import pandas as pd
 
 from .tidal_constituents import NOAA_SPEEDS
-from .tidal_database import TidalDB
+from .tidal_database import convert_coords, TidalDB
 
 
 class LeProvostDB(TidalDB):
     """Extractor class for the LeProvost tidal database.
 
     Attributes:
-        leprovost_path (str): Fully qualified path to a folder containing the LeProvost *.legi files
         cons (:obj:`list` of :obj:`str`): List of the constituents that are valid for the LeProvost database
+        leprovost_path (str): Fully qualified path to a folder containing the LeProvost *.legi files
+        data (:obj:`list` of :obj:`pandas.DataFrame`): List of the constituent component DataFrames with one
+            per point location requested from get_components(). Intended return value of get_components().
 
     """
     def __init__(self, leprovost_path):
@@ -34,6 +36,7 @@ class LeProvostDB(TidalDB):
         TidalDB.__init__(self)
         self.cons = ['M2', 'S2', 'N2', 'K1', 'O1', 'NU2', 'MU2', '2N2', 'Q1', 'T2', 'P1', 'L2', 'K2']
         self.leprovost_path = leprovost_path
+        self.data = []
         self.validate_files()
 
     def validate_files(self):
@@ -42,22 +45,35 @@ class LeProvostDB(TidalDB):
         If the database is incomplete or nonexistent, a new LeProvost database will be downloaded from Aquaveo.com.
 
         """
-        if not os.path.isdir(self.leprovost_path):  # Make sure the directory exists
-            os.mkdir(self.leprovost_path)
-        # Make sure all the database files exist in the directory
         legi_files = ['M2.legi', 'S2.legi', 'N2.legi', 'K1.legi', 'O1.legi', 'NU2.legi', 'MU2.legi', '2N2.legi',
                       'Q1.legi', 'T2.legi', 'P1.legi', 'L2.legi', 'K2.legi']
+
+        if not self.leprovost_path:  # Use the working directory if none provided
+            local_leprovost = os.path.join(os.getcwd(), "LeProvost")
+            if all([os.path.isfile(os.path.join(local_leprovost, f)) for f in legi_files]):
+                self.leprovost_path = local_leprovost
+                return
+            else:
+                self.leprovost_path = os.getcwd()
+
+        if not os.path.isdir(self.leprovost_path):
+            os.mkdir(self.leprovost_path)
+
+        # Make sure all the database files exist in the directory
         if not all([os.path.isfile(os.path.join(self.leprovost_path, f)) for f in legi_files]):
             # Download from the Aquaveo website
             leprovost_url = 'http://sms.aquaveo.com/ADCIRC_Essentials.zip'
             zip_file = os.path.join(self.leprovost_path, "ADCIRC_Essentials.zip")
+            print("Downloading resource: {}".format(leprovost_url))
             with urllib.request.urlopen(leprovost_url) as response, open(zip_file, 'wb') as out_file:
                 shutil.copyfileobj(response, out_file)
             # Unzip the files
+            print("Unzipping files to: {}".format(self.leprovost_path))
             with ZipFile(zip_file, 'r') as unzipper:
                 for file in unzipper.namelist():
                     if file.startswith('LeProvost/'):
                         unzipper.extract(file, self.leprovost_path)
+            print("Deleting zip file: {}".format(zip_file))
             os.remove(zip_file)  # delete the zip file
             self.leprovost_path = os.path.join(self.leprovost_path, "LeProvost")
 
@@ -65,8 +81,8 @@ class LeProvostDB(TidalDB):
         """Get the amplitude, phase, and speed of specified constituents at specified point locations.
 
         Args:
-            locs (:obj:`list` of :obj:`tuple` of :obj:`float`): List of the point locations to get
-                amplitude and phase for. e.g. [(x1, y1), (x2, y2)]
+            locs (:obj:`list` of :obj:`tuple` of :obj:`float`): latitude [-90, 90] and longitude [-180 180] or [0 360]
+                of the requested points.
             cons (:obj:`list` of :obj:`str`, optional): List of the constituent names to get amplitude and phase for. If
                 not supplied, all valid constituents will be extracted.
             positive_ph (bool, optional): Indicate if the returned phase should be all positive [0 360] (True) or
@@ -76,29 +92,23 @@ class LeProvostDB(TidalDB):
            :obj:`list` of :obj:`pandas.DataFrame`: A list of dataframes of constituent information including
                 amplitude (meters), phase (degrees) and speed (degrees/hour, UTC/GMT). The list is parallel with locs,
                 where each element in the return list is the constituent data for the corresponding element in locs.
-                Empty list on error.
+                Empty list on error. Note that function uses fluent interface pattern.
 
         """
         # If no constituents specified, extract all valid constituents.
         if not cons:
             cons = self.cons
-        # read the file for each constituent
-        con_data = []
-        for pt in locs:
-            y_lat = pt[1]
-            x_lon = pt[0]
-            if x_lon < 0.0:
-                x_lon = x_lon + 360.0
-            if x_lon > 180.0:
-                x_lon = x_lon - 360.0
-            if x_lon > 180.0 or x_lon < -180.0 or y_lat > 90.0 or y_lat < -90.0:
-                # ERROR: Not in latitude/longitude
-                return con_data
 
-        con_data = [pd.DataFrame(columns=['amplitude', 'phase', 'speed']) for _ in range(len(locs))]
+        # Make sure point locations are valid lat/lon
+        locs = convert_coords(locs)
+        if not locs:
+            return self  # ERROR: Not in latitude/longitude
+
+        self.data = [pd.DataFrame(columns=['amplitude', 'phase', 'speed']) for _ in range(len(locs))]
 
         deg2rad = 1.0 / 180.0 * math.pi
         rad2deg = 1.0 / deg2rad
+        # read the file for each constituent
         for con in cons:
             if self.have_constituent(con):
                 con = con.lower()
@@ -136,9 +146,10 @@ class LeProvostDB(TidalDB):
                             g_pha[k][lat] = float(line_vals[cur_val])
                             cur_val += 1
 
+            # Extract components for each point for this constituent
             for i, pt in enumerate(locs):
-                y_lat = pt[1]
-                x_lon = pt[0]
+                y_lat = pt[0]
+                x_lon = pt[1]
                 if x_lon < 0.0:
                     x_lon = x_lon + 360.0
                 if x_lon > 180.0:
@@ -168,7 +179,7 @@ class LeProvostDB(TidalDB):
                     skip = True
 
                 if skip:
-                    con_data[i].loc[con.upper()] = [0.0, 0.0, 0.0]
+                    self.data[i].loc[con.upper()] = [0.0, 0.0, 0.0]
                 else:
                     xratio = (x_lon - xlonlo) / d_lon
                     yratio = (y_lat - ylatlo) / d_lat
@@ -210,9 +221,9 @@ class LeProvostDB(TidalDB):
                     if xsin < 0.0:
                         phase = 360.0 - phase
                     phase += (360. if positive_ph and phase < 0 else 0)
-                    con_data[i].loc[con.upper()] = [amp, phase, NOAA_SPEEDS[con.upper()]]
+                    self.data[i].loc[con.upper()] = [amp, phase, NOAA_SPEEDS[con.upper()]]
 
-        return con_data
+        return self
 
     def have_constituent(self, a_name):
         """Checks if a constituent name is valid for the LeProvost tidal database
