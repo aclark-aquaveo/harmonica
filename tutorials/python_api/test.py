@@ -4,7 +4,6 @@ import os
 import harmonica.adcirc_database
 import harmonica.leprovost_database
 import harmonica.tidal_constituents
-# import TPXODatabase
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -35,24 +34,26 @@ if __name__ == "__main__":
                 (45.44, -69.38)]
     pacific = [(43.63, -124.55),  # Not valid with ADCIRC Atlantic database
                (46.18, -124.38)]
-    all_points = []  # All locations valid with LeProvost
+    all_points = []  # All locations valid with LeProvost and TPXO
     all_points.extend(atlantic)
     all_points.extend(pacific)
 
     good_cons = ['M2', 'S2', 'N2', 'K1']
-    # bad_con = 'ZZ7'
+    # Create an ADCIRC database for the Atlantic locations.
     ad_alantic_db = harmonica.adcirc_database.AdcircDB(work_dir, adcirc_atlantic,
                                                        harmonica.adcirc_database.TidalDBAdcircEnum.TIDE_NWAT)
+    # Create an ADCIRC database for the Pacific locations.
     ad_pacific_db = harmonica.adcirc_database.AdcircDB(work_dir, adcir_pacific,
                                                        harmonica.adcirc_database.TidalDBAdcircEnum.TIDE_NEPAC)
+    # Create a LeProvost database for all locations.
     leprovost_db = harmonica.leprovost_database.LeProvostDB(leprovost)
-    # tp_db = TPXODatabase.TpxoDB('tpxo8')
-    tpx0_db = harmonica.tidal_constituents.Constituents()
+    # Create a TPXO database for all locations.
+    tpxo_db = harmonica.tidal_constituents.Constituents()
 
+    # Get nodal factor data from the ADCIRC and LeProvost tidal databases
     ad_al_nodal_factor = ad_alantic_db.get_nodal_factor(good_cons, 15, 30, 8, 2018)
     ad_pa_nodal_factor = ad_pacific_db.get_nodal_factor(good_cons, 15, 30, 8, 2018)
     leprovost_nodal_factor = leprovost_db.get_nodal_factor(good_cons, 15, 30, 8, 2018)
-    # tp_nf = tp_db.get_nodal_factor(good_cons, 15, 30, 8, 2018)
 
     f = open(os.path.join(work_dir, "tidal_test.out"), "w")
     f.write("ADCIRC Atlantic nodal factor:\n")
@@ -63,27 +64,28 @@ if __name__ == "__main__":
     f.write(leprovost_nodal_factor.to_string() + "\n\n")
     f.flush()
 
-    all_points1 = ad_alantic_db.get_components(atlantic, good_cons)
-    all_points2 = ad_pacific_db.get_components(pacific, good_cons)
-    all_points3 = leprovost_db.get_components(all_points, good_cons)
-    #all_points4 = tp_db.get_amplitude_and_phase(good_cons, all_points)
+    # Get tidal harmonic components for a list of points using the ADCIRC and
+    # LeProvost databases.
+    ad_atlantic_comps = ad_alantic_db.get_components(atlantic, good_cons)
+    ad_pacific_comps = ad_pacific_db.get_components(pacific, good_cons)
+    leprovost_comps = leprovost_db.get_components(all_points, good_cons)
 
     f.write("ADCIRC Atlantic components:\n")
-    for pt in all_points1.data:
+    for pt in ad_atlantic_comps.data:
         f.write(pt.to_string() + "\n\n")
     f.write("ADCIRC Pacific components:\n")
-    for pt in all_points2.data:
+    for pt in ad_pacific_comps.data:
         f.write(pt.to_string() + "\n\n")
     f.write("LeProvost components:\n")
-    for pt in all_points3.data:
+    for pt in leprovost_comps.data:
         f.write(pt.to_string() + "\n\n")
+
+    # Get tidal harmonic components for a single point using the TPXO tidal model.
     f.write("TPX0 components:\n")
-    try:
-        for pt in all_points:
-            components = tpx0_db.get_components(pt, 'tpxo8', good_cons, True)
-            f.write(components.data.to_string() + "\n\n")
-            f.flush()
-    except Exception as e:
-        print("Exception thrown during TPX0 extraction: {}".format(e))
+    for pt in all_points:
+        # Specify TPXO version when calling get_components()
+        components = tpxo_db.get_components(pt, 'tpxo8', good_cons, True)
+        f.write(components.data.to_string() + "\n\n")
+        f.flush()
 
     f.close()
