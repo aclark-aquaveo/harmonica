@@ -7,17 +7,14 @@ import harmonica.tidal_constituents
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-w", "--work_dir", default=os.getcwd(),
-                        help="directory to save output and temporary files")
-    parser.add_argument("-a", "--adcirc_atlantic", default="",
+    parser.add_argument("-a", "--adcirc_atlantic", default=None,
                         help="path to the ADCIRC Atlantic database")
-    parser.add_argument("-p", "--adcirc_pacific", default="",
+    parser.add_argument("-p", "--adcirc_pacific", default=None,
                         help="path to the ADCIRC Pacific database")
-    parser.add_argument("-l", "--leprovost", default="",
+    parser.add_argument("-l", "--leprovost", default=None,
                         help="path to the LeProvost database folder")
     args = vars(parser.parse_args())
-    
-    work_dir = args["work_dir"]
+
     adcirc_atlantic = args["adcirc_atlantic"]
     adcir_pacific = args["adcirc_pacific"]
     leprovost = args["leprovost"]
@@ -39,23 +36,21 @@ if __name__ == "__main__":
     all_points.extend(pacific)
 
     good_cons = ['M2', 'S2', 'N2', 'K1']
-    # Create an ADCIRC database for the Atlantic locations.
-    ad_alantic_db = harmonica.adcirc_database.AdcircDB(work_dir, adcirc_atlantic,
-                                                       harmonica.adcirc_database.TidalDBAdcircEnum.TIDE_NWAT)
+    # Create an ADCIRC database for the Atlantic locations (default).
+    ad_alantic_db = harmonica.adcirc_database.AdcircDB(adcirc_atlantic)
     # Create an ADCIRC database for the Pacific locations.
-    ad_pacific_db = harmonica.adcirc_database.AdcircDB(work_dir, adcir_pacific,
-                                                       harmonica.adcirc_database.TidalDBAdcircEnum.TIDE_NEPAC)
+    ad_pacific_db = harmonica.adcirc_database.AdcircDB(adcir_pacific, "adcircnepac")
     # Create a LeProvost database for all locations.
     leprovost_db = harmonica.leprovost_database.LeProvostDB(leprovost)
     # Create a TPXO database for all locations.
-    tpxo_db = harmonica.tidal_constituents.Constituents()
+    tpxo_db = harmonica.tidal_constituents.Constituents('tpxo8')
 
     # Get nodal factor data from the ADCIRC and LeProvost tidal databases
     ad_al_nodal_factor = ad_alantic_db.get_nodal_factor(good_cons, 15, 30, 8, 2018)
     ad_pa_nodal_factor = ad_pacific_db.get_nodal_factor(good_cons, 15, 30, 8, 2018)
     leprovost_nodal_factor = leprovost_db.get_nodal_factor(good_cons, 15, 30, 8, 2018)
 
-    f = open(os.path.join(work_dir, "tidal_test.out"), "w")
+    f = open(os.path.join(os.getcwd(), "tidal_test.out"), "w")
     f.write("ADCIRC Atlantic nodal factor:\n")
     f.write(ad_al_nodal_factor.to_string() + "\n\n")
     f.write("ADCIRC Pacific nodal factor:\n")
@@ -69,6 +64,7 @@ if __name__ == "__main__":
     ad_atlantic_comps = ad_alantic_db.get_components(atlantic, good_cons)
     ad_pacific_comps = ad_pacific_db.get_components(pacific, good_cons)
     leprovost_comps = leprovost_db.get_components(all_points, good_cons)
+    tpxo_comps = tpxo_db.get_components(all_points, good_cons, True)
 
     f.write("ADCIRC Atlantic components:\n")
     for pt in ad_atlantic_comps.data:
@@ -82,10 +78,12 @@ if __name__ == "__main__":
 
     # Get tidal harmonic components for a single point using the TPXO tidal model.
     f.write("TPX0 components:\n")
-    for pt in all_points:
-        # Specify TPXO version when calling get_components()
-        components = tpxo_db.get_components(pt, 'tpxo8', good_cons, True)
-        f.write(components.data.to_string() + "\n\n")
-        f.flush()
+    for pt in tpxo_comps.data:
+        f.write(pt.to_string() + "\n\n")
+    #for pt in all_points:
+    #    # Specify TPXO version when calling get_components()
+    #    components = tpxo_db.get_components(pt, 'tpxo8', good_cons, True)
+    #    f.write(components.data.to_string() + "\n\n")
+    #    f.flush()
 
     f.close()

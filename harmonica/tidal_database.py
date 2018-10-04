@@ -6,8 +6,53 @@ import math
 
 import pandas as pd
 
+from .resource import ResourceManager
 
 NCNST = 37
+
+# Dictionary of NOAA constituent speed constants (deg/hr)
+# Source: https://tidesandcurrents.noaa.gov
+# The speed is the rate change in the phase of a constituent, and is equal to 360 degrees divided by the
+# constituent period expressed in hours
+NOAA_SPEEDS = {
+    'OO1': 16.139101,
+    '2Q1': 12.854286,
+    '2MK3': 42.92714,
+    '2N2': 27.895355,
+    '2SM2': 31.015896,
+    'K1': 15.041069,
+    'K2': 30.082138,
+    'J1': 15.5854435,
+    'L2': 29.528479,
+    'LAM2': 29.455626,
+    'M1': 14.496694,
+    'M2': 28.984104,
+    'M3': 43.47616,
+    'M4': 57.96821,
+    'M6': 86.95232,
+    'M8': 115.93642,
+    'MF': 1.0980331,
+    'MK3': 44.025173,
+    'MM': 0.5443747,
+    'MN4': 57.423832,
+    'MS4': 58.984104,
+    'MSF': 1.0158958,
+    'MU2': 27.968208,
+    'N2': 28.43973,
+    'NU2': 28.512583,
+    'O1': 13.943035,
+    'P1': 14.958931,
+    'Q1': 13.398661,
+    'R2': 30.041067,
+    'RHO': 13.471515,
+    'S1': 15.0,
+    'S2': 30.0,
+    'S4': 60.0,
+    'S6': 90.0,
+    'SA': 0.0410686,
+    'SSA': 0.0821373,
+    'T2': 29.958933,
+}
 
 
 def convert_coords(coords):
@@ -43,7 +88,6 @@ class TidalDBEnum(Enum):
     TIDAL_DB_ADCIRC = 1
 
 
-
 class OrbitVariables(object):
     def __init__(self):
         self.dh = 0.0
@@ -77,18 +121,37 @@ class TidalDB(object):
     day_t = [0.0, 31.0, 59.0, 90.0, 120.0, 151.0, 181.0, 212.0, 243.0, 273.0, 304.0, 334.0]
     pi180 = math.pi/180.0
 
-    def __init__(self):
+    def __init__(self, model):
         self.orbit = OrbitVariables()
+        self.data = []
+        self.resources = None
+        self._model = None
+        self.change_model(model)
 
     __metaclass__ = ABCMeta
 
-    @abstractmethod
-    def get_components(self, a_constituents, a_points):
-        pass
+    @property
+    def model(self):
+        return self._model
+
+    @model.setter
+    def model(self, value):
+        self.change_model(value)
+
+    def change_model(self, model):
+        model = model.lower()
+        if model == 'tpxo7_2':
+            model = 'tpxo7'
+        if model != self._model:
+            self._model = model
+            self.resources = ResourceManager(self._model)
 
     @abstractmethod
-    def have_constituent(self, a_name):
+    def get_components(self, locs, cons, positive_ph):
         pass
+
+    def have_constituent(self, a_name):
+        return a_name.upper() in self.resources.available_constituents()
 
     def get_nodal_factor(self, a_names, a_hour, a_day, a_month, a_year):
         """Get the nodal factor for specified constituents at a specified time.

@@ -6,13 +6,10 @@ import subprocess
 import random
 import string
 import shutil
-import urllib.request
-from zipfile import ZipFile
 
 import pandas as pd
 
-from .tidal_constituents import NOAA_SPEEDS
-from .tidal_database import convert_coords, TidalDB
+from .tidal_database import convert_coords, NOAA_SPEEDS, TidalDB
 
 
 class TidalDBAdcircEnum(Enum):
@@ -45,7 +42,7 @@ class AdcircDB(TidalDB):
         tide_out (str): Temporary 'tides.out' filename with path.
 
     """
-    def __init__(self, work_path, exe_with_path, db_region):
+    def __init__(self, resource_dir=None, db_region="adcircnwat"):
         """Get the amplitude and phase for the given constituents at the given points.
 
         Args:
@@ -54,74 +51,32 @@ class AdcircDB(TidalDB):
             db_region (:obj: `TidalDBAdcircEnum`): The db_region of database.
 
         """
-        TidalDB.__init__(self)
-        self.work_path = work_path
-        self.exe_with_path = exe_with_path
-        self.db_region = db_region
         self.cons = ['M2', 'S2', 'N2', 'K1', 'M4', 'O1', 'M6', 'Q1', 'K2']
-        self.data = []
-        if self.db_region == TidalDBAdcircEnum.TIDE_NWAT:
+
+        if db_region.lower() == "adcircnwat":
+            self.db_region = TidalDBAdcircEnum.TIDE_NWAT
             self.grid_no_path = 'ec2001.grd'
             self.harm_no_path = 'ec2001.tdb'
-        elif self.db_region == TidalDBAdcircEnum.TIDE_NEPAC:
+        elif db_region.lower() == "adcircnepac":
+            self.db_region = TidalDBAdcircEnum.TIDE_NEPAC
             self.grid_no_path = 'enpac2003.grd'
             self.harm_no_path = 'enpac2003.tdb'
         else:
-            self.grid_no_path = ''
-            self.harm_no_path = ''
+            raise ValueError('unrecognized ADCIRC database region.')
+        super().__init__(db_region.lower())
+        resource_dir = self.resources.download_model(resource_dir)
+        self.exe_with_path = os.path.join(resource_dir, self.resources.model_atts["consts"][0]["M2"])
+
+        # Build the temp working folder name
         src_list = list(string.ascii_uppercase + string.digits)
         rand_str = random.choice(src_list)
-        self.temp_folder = os.path.join(self.work_path, '_'.join(rand_str))
+        self.temp_folder = os.path.join(resource_dir, '_'.join(rand_str))
         # check that the folder does not exist
         while os.path.isdir(self.temp_folder):
             rand_str = random.choice(src_list)
             self.temp_folder = self.temp_folder + rand_str
         self.tide_in = os.path.join(self.temp_folder, 'tides.in')
         self.tide_out = os.path.join(self.temp_folder, 'tides.out')
-        self.validate_files()
-
-    def validate_files(self):
-        """Check to ensure that the ADCIRC database exists.
-
-        If the database is nonexistent, a new ADCIRC database will be downloaded from Aquaveo.com. Whether the Atlantic
-        or Pacific database is download depends on how the object was constructed.
-
-        """
-        if not os.path.isdir(self.work_path):
-            self.work_path = os.getcwd()
-
-        if not os.path.isfile(self.exe_with_path):  # Make sure the executable exists
-            # Download from the Aquaveo website
-            if self.db_region == TidalDBAdcircEnum.TIDE_NWAT:  # Download the ADCIRC Atlantic database
-                adcirc_db_url = 'http://sms.aquaveo.com/adcircnwattides.zip'
-                basename = 'adcircnwattides'
-                if not self.exe_with_path:  # check the local directory
-                    local_exe = os.path.join(os.getcwd(), "adcircnwattides/adcircnwattides.exe")
-                    if os.path.isfile(local_exe):
-                        self.exe_with_path = local_exe
-                        return
-            else:  # Download the ADCIRC Pacific database
-                adcirc_db_url = 'http://sms.aquaveo.com/adcircnepactides.zip'
-                basename = 'adcircnepactides'
-                if not self.exe_with_path:  # check the local directory
-                    local_exe = os.path.join(os.getcwd(), "adcircnepactides/adcircnepactides.exe")
-                    if os.path.isfile(local_exe):
-                        self.exe_with_path = local_exe
-                        return
-            zip_file = os.path.join(self.work_path, basename + '.zip')
-            print("Downloading resource: {}".format(adcirc_db_url))
-            with urllib.request.urlopen(adcirc_db_url) as response, open(zip_file, 'wb') as out_file:
-                shutil.copyfileobj(response, out_file)
-            # Unzip the files
-            dest_path = os.path.join(self.work_path, basename)
-            if not os.path.isdir(dest_path):
-                os.mkdir(dest_path)
-            print("Unzipping files to: {}".format(dest_path))
-            with ZipFile(zip_file, 'r') as unzipper:
-                unzipper.extractall(path=dest_path)
-            print("Deleting zip file: {}".format(zip_file))
-            os.remove(zip_file)  # delete the zip file
-            self.exe_with_path = os.path.join(dest_path, basename + ".exe")
 
     def get_components(self, locs, cons=None, positive_ph=False):
         """Get the amplitude, phase, and speed for the given constituents at the given points.
@@ -158,7 +113,7 @@ class AdcircDB(TidalDB):
                 constituents.append(con)
 
         # create the temp directory
-        os.mkdir(self.temp_folder)
+        os.makedirs(self.temp_folder)
         os.chdir(self.temp_folder)
         try:
             # write tides.in into the temp directory
@@ -232,7 +187,7 @@ class AdcircDB(TidalDB):
             del_files = os.listdir(self.temp_folder)
             for del_file in del_files:
                 os.remove(del_file)
-            os.chdir(self.work_path)
+            os.chdir(os.path.dirname(self.temp_folder))
             os.rmdir(self.temp_folder)
 
         return self

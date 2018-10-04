@@ -1,4 +1,4 @@
-from .tidal_constituents import Constituents
+from .tidal_constituents import Constituents, NOAA_SPEEDS
 from .resource import ResourceManager
 from pytides.astro import astro
 from pytides.tide import Tide as pyTide
@@ -6,7 +6,6 @@ import pytides.constituent as pycons
 from datetime import datetime
 import numpy as np
 import pandas as pd
-import sys
 
 
 class Tide:
@@ -31,7 +30,6 @@ class Tide:
         self.data = pd.DataFrame(columns=['datetimes', 'water_level'])
         self.constituents = Constituents()
 
-
     def reconstruct_tide(self, loc, times, model=ResourceManager.DEFAULT_RESOURCE,
             cons=[], positive_ph=False, offset=None):
         """Rescontruct a tide signal water levels at the given location and times
@@ -48,15 +46,16 @@ class Tide:
         """
 
         # get constituent information
-        self.constituents.get_components(loc, model, cons, positive_ph)
+        self.constituents.model = model
+        self.constituents.get_components([loc], cons, positive_ph)
 
-        ncons = len(self.constituents.data) + (1 if offset is not None else 0)
+        ncons = len(self.constituents.data[0]) + (1 if offset is not None else 0)
         tide_model = np.zeros(ncons, dtype=pyTide.dtype)
         # load specified model constituent components into pytides model object
-        for i, key in enumerate(self.constituents.data.index.values):
+        for i, key in enumerate(self.constituents.data[0].index.values):
             tide_model[i]['constituent'] = eval('pycons._{}'.format(self.PYTIDES_CON_MAPPER.get(key, key)))
-            tide_model[i]['amplitude'] = self.constituents.data.loc[key].amplitude
-            tide_model[i]['phase'] = self.constituents.data.loc[key].phase
+            tide_model[i]['amplitude'] = self.constituents.data[0].loc[key].amplitude
+            tide_model[i]['phase'] = self.constituents.data[0].loc[key].phase
         # if an offset is provided then add as spoofed constituent Z0
         if offset is not None:
             tide_model[-1]['constituent'] = pycons._Z0
@@ -68,7 +67,6 @@ class Tide:
         self.data['water_level'] = pd.Series(pyTide(model=tide_model, radians=False).at(times), index=self.data.index)
 
         return self
-
 
     def deconstruct_tide(self, water_level, times, cons=[], n_period=6, positive_ph=False):
         """Method to use pytides to deconstruct the tides and reorganize results back into the class structure.
@@ -90,11 +88,10 @@ class Tide:
             cons = pycons.noaa
         else:
             cons = [eval('pycons._{}'.format(self.PYTIDES_CON_MAPPER.get(c, c))) for c in cons
-                if c in self.constituents.NOAA_SPEEDS]
+                if c in NOAA_SPEEDS]
         self.model_to_dataframe(pyTide.decompose(water_level, times, constituents=cons, n_period=n_period),
             times[0], positive_ph=positive_ph)
         return self
-
 
     def model_to_dataframe(self, tide, t0=datetime.now(), positive_ph=False):
         """Method to reorganize data from the pytides tide model format into the native dataframe format.
@@ -118,8 +115,8 @@ class Tide:
         cons = np.asarray(np.vectorize(extractor)(tide.model[tide.model['constituent'] != pycons._Z0])).T
         # convert into dataframe
         df = pd.DataFrame(cons[:,1:], index=cons[:,0], columns=['amplitude', 'phase', 'speed'], dtype=float)
-        self.constituents.data = pd.concat([self.constituents.data, df], axis=0, join='inner')
+        self.constituents.data[0] = pd.concat([self.constituents.data[0], df], axis=0, join='inner')
         # convert phase if necessary
         if not positive_ph:
-            self.constituents.data['phase'] = np.where(self.constituents.data['phase'] > 180.,
-                self.constituents.data['phase'] - 360., self.constituents.data['phase'])
+            self.constituents.data[0]['phase'] = np.where(self.constituents.data[0]['phase'] > 180.,
+                self.constituents.data[0]['phase'] - 360., self.constituents.data[0]['phase'])
