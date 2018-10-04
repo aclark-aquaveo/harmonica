@@ -59,8 +59,8 @@ if __name__ == "__main__":
     f.write(leprovost_nodal_factor.to_string() + "\n\n")
     f.flush()
 
-    # Get tidal harmonic components for a list of points using the ADCIRC and
-    # LeProvost databases.
+    # Get tidal harmonic components for a list of points using the ADCIRC,
+    # LeProvost, and TPXO databases.
     ad_atlantic_comps = ad_alantic_db.get_components(atlantic, good_cons)
     ad_pacific_comps = ad_pacific_db.get_components(pacific, good_cons)
     leprovost_comps = leprovost_db.get_components(all_points, good_cons)
@@ -75,15 +75,8 @@ if __name__ == "__main__":
     f.write("LeProvost components:\n")
     for pt in leprovost_comps.data:
         f.write(pt.to_string() + "\n\n")
-
-    # Get tidal harmonic components for a single point using the TPXO tidal model.
     f.write("TPX0 components:\n")
     for pt in tpxo_comps.data:
         f.write(pt.to_string() + "\n\n")
-    #for pt in all_points:
-    #    # Specify TPXO version when calling get_components()
-    #    components = tpxo_db.get_components(pt, 'tpxo8', good_cons, True)
-    #    f.write(components.data.to_string() + "\n\n")
-    #    f.flush()
 
     f.close()

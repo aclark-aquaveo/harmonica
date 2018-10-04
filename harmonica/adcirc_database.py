@@ -30,9 +30,9 @@ class AdcircDB(TidalDB):
 
     Attributes:
         exe_with_path (str): The path of the ADCIRC executable.
-        db_region (:obj: `TidalDBAdcircEnum`): The type of database.
-        grid_no_path (str): Filename of *.grd file to use.
-        harm_no_path (str): Filename of *.tdb file to use.
+        db_region (:obj:`harmonica.adcirc_database.TidalDBAdcircEnum`): The type of database.
+        grid_no_path (str): Filename of \*.grd file to use.
+        harm_no_path (str): Filename of \*.tdb file to use.
         temp_folder (str): Temporary folder to hold files in while running executables.
         tide_in (str): Temporary 'tides.in' filename with path.
         tide_out (str): Temporary 'tides.out' filename with path.
@@ -44,7 +44,7 @@ class AdcircDB(TidalDB):
         Args:
             resource_dir (:obj:`str`, optional): Directory of the ADCIRC resources. If not provided will become a
                 subfolder of "data" in the harmonica package location.
-            db_region (:obj:`str`, optional): ADCIRC tidal database region. Valid options are 'adcircnwat' and\
+            db_region (:obj:`str`, optional): ADCIRC tidal database region. Valid options are 'adcircnwat' and
                 'adcircnepac'
 
         """
@@ -85,7 +85,7 @@ class AdcircDB(TidalDB):
                 [-180 180] (False, the default).
 
         Returns:
-            :obj:`list` of :obj:`pandas.DataFrame`: A list of dataframes of constituent information including
+            (:obj:`list` of :obj:`pandas.DataFrame`): A list of dataframes of constituent information including
                 amplitude (meters), phase (degrees) and speed (degrees/hour, UTC/GMT). The list is parallel with locs,
                 where each element in the return list is the constituent data for the corresponding element in locs.
                 Note that function uses fluent interface pattern.

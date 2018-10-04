@@ -128,7 +128,7 @@ class TidalDB(object):
         """Base class constructor for the tidal extractors
 
         Args:
-            model (str): The name of the model. One of: 'tpxo9', 'tpxo8', 'tpxo7', 'leprovost, 'adcircnwat', or
+            model (str): The name of the model. One of 'tpxo9', 'tpxo8', 'tpxo7', 'leprovost, 'adcircnwat', or
                 'adcircnepac'
 
         """
@@ -142,9 +142,10 @@ class TidalDB(object):
 
     @property
     def model(self):
-        """str: The name of the model. One of: 'tpxo9', 'tpxo8', 'tpxo7', 'leprovost, 'adcircnwat', or 'adcircnepac'
+        """str: The name of the model. One of 'tpxo9', 'tpxo8', 'tpxo7', 'leprovost', 'adcircnwat', or 'adcircnepac'
 
         When setting the model to a different one than the current, required resources are downloaded.
+
         """
         return self._model
 
@@ -153,7 +154,7 @@ class TidalDB(object):
         self.change_model(value)
 
     def change_model(self, model):
-        """Change the extractor model, if different than the current, required resources are downloaded.
+        """Change the extractor model. If different than the current, required resources are downloaded.
 
         Args:
             model (str): The name of the model. One of: 'tpxo9', 'tpxo8', 'tpxo7', 'leprovost, 'adcircnwat', or
@@ -502,7 +503,7 @@ class TidalDB(object):
         pc = self.orbit.dpc*self.pi180
         top = (5.0*math.cos(fi)-1.0)*math.sin(pc)
         bottom = (7.0*math.cos(fi)+1.0)*math.cos(pc)
-        q = self.arctan(top, bottom)
+        q = math.degrees(math.atan2(top, bottom))
         self.orbit.grterm[17] = t-s+h-90.0+xi-nu+q
         self.orbit.grterm[18] = t+s+h-p-90.0-nu
         self.orbit.grterm[19] = s-p
@@ -527,31 +528,3 @@ class TidalDB(object):
         self.orbit.grterm[36] = 2.0*(2.0*t-s+h)+2.0*(xi-nu)
         for ih in range(0, 37):
             self.orbit.grterm[ih] = self.angle(self.orbit.grterm[ih])
-
-    @staticmethod
-    def arctan(a_top, a_bottom):
-        """Determine the arctangent and place in correct quadrant.
-
-        Args:
-        TODO Find out what these are
-            a_top: The first parameter.
-            a_bottom: The second parameter.
-
-        Returns:
-            The arc tangent in degrees in the correct quadrant.
-
-        """
-        if a_bottom == 0.0:
-            if a_top < 0.0:
-                value = 270.0
-            elif a_top == 0.0:
-                value = 0.0
-            else:
-                value = 90.0
-            return value
-        value = math.atan(a_top/a_bottom)*57.2957795
-        if a_bottom < 0.0:
-            value += 180.0
-        else:
-            value += 360.0
-        return value

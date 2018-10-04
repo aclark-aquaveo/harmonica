@@ -16,7 +16,7 @@ class LeProvostDB(TidalDB):
     """Extractor class for the LeProvost tidal database.
 
     Attributes:
-        resource_dir (str): Fully qualified path to a folder containing the LeProvost *.legi files
+        resource_dir (str): Fully qualified path to a folder containing the LeProvost \*.legi files
 
     """
     def __init__(self, resource_dir=None):

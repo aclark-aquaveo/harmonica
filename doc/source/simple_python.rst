@@ -21,7 +21,7 @@ Executing :file:`test.py` will fetch the required tidal resources from the Inter
 they do not already exist in the working directory. To specify existing resources use the
 following command line arguments:
 
--l path     Path to the LeProvost *.legi files
+-l path     Path to the LeProvost \*.legi files
 -a file     Path and filename of the ADCIRC Northwest Atlantic executable
 -p file     Path and filename of the ADCIRC Northeast Pacific executable
 
@@ -39,32 +39,26 @@ degrees. Note that we have split locations in the Atlantic and Pacific. LeProvos
 TPXO support all ocean locations, but the ADCIRC database is restricted to one or the other.
 
 .. literalinclude:: ../../tutorials/python_api/test.py
-   :lines: 25-39
+   :lines: 22-36
    :lineno-match:
 
 The next section of code sets up the tidal harmonic extraction interface. For the ADCIRC
 extractors, the tidal region must be specified at construction.
 
 .. literalinclude:: ../../tutorials/python_api/test.py
-   :lines: 42-51
+   :lines: 39-46
    :lineno-match:
 
 The ADCIRC and LeProvost extractors can also provide frequencies, earth tidal reduction factors, amplitudes, nodal factors,
 and equilibrium arguments for specified constituents at a specified time. The next section of code demonstrates this.
 
 .. literalinclude:: ../../tutorials/python_api/test.py
-   :lines: 53-56
+   :lines: 48-51
    :lineno-match:
 
-The next block uses the ADCIRC and LeProvost interfaces to extract tidal harmonic constituents for a list of
+The last block uses the ADCIRC, LeProvost, and TPXO interfaces to extract tidal harmonic constituents for a list of
 locations and constituents.
 
 .. literalinclude:: ../../tutorials/python_api/test.py
-   :lines: 67-71
-   :lineno-match:
-
-Finally, the TPXO interface extracts tidal harmonic constituents for a single location at a time.
-
-.. literalinclude:: ../../tutorials/python_api/test.py
-   :lines: 83-87
+   :lines: 62-80
    :lineno-match:
