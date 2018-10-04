@@ -16,23 +16,20 @@ class LeProvostDB(TidalDB):
     """Extractor class for the LeProvost tidal database.
 
     Attributes:
-        cons (:obj:`list` of :obj:`str`): List of the constituents that are valid for the LeProvost database
         resource_dir (str): Fully qualified path to a folder containing the LeProvost *.legi files
-        data (:obj:`list` of :obj:`pandas.DataFrame`): List of the constituent component DataFrames with one
-            per point location requested from get_components(). Intended return value of get_components().
 
     """
     def __init__(self, resource_dir=None):
-        """Constructor for database extractor
+        """Constructor for the LeProvost tidal database extractor.
 
         Args:
-            resource_dir (str): Fully qualified path to a folder containing the LeProvost *.legi files
+            resource_dir (:obj:`str`, optional): Fully qualified path to a folder containing the LeProvost *.legi files.
+                If not provided will be "harmonica/data/leprovost' where harmonica is the location of the pacakage.
 
         """
         # self.debugger = open("debug.txt", "w")
         super().__init__("leprovost")
         self.resource_dir = self.resources.download_model(resource_dir)
-        self.cons = ['M2', 'S2', 'N2', 'K1', 'O1', 'NU2', 'MU2', '2N2', 'Q1', 'T2', 'P1', 'L2', 'K2']
 
     def get_components(self, locs, cons=None, positive_ph=False):
         """Get the amplitude, phase, and speed of specified constituents at specified point locations.
@@ -54,7 +51,7 @@ class LeProvostDB(TidalDB):
         """
         # If no constituents specified, extract all valid constituents.
         if not cons:
-            cons = self.cons
+            cons = self.resources.available_constituents()
 
         # Make sure point locations are valid lat/lon
         locs = convert_coords(locs)
@@ -181,18 +178,3 @@ class LeProvostDB(TidalDB):
                     self.data[i].loc[con] = [amp, phase, NOAA_SPEEDS[con]]
 
         return self
-
-    def have_constituent(self, a_name):
-        """Checks if a constituent name is valid for the LeProvost tidal database
-
-        Args:
-            a_name (str): Name of the constituent to check.
-
-        Returns:
-            True if the constituent is valid for the LeProvost tidal database, False otherwise.
-
-        """
-        if a_name.upper() in self.cons:
-            return True
-        else:
-            return False

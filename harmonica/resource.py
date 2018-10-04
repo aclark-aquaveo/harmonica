@@ -94,7 +94,8 @@ class ResourceManager(object):
         'leprovost': {
             'resource_atts': {
                 'url': "http://sms.aquaveo.com/ADCIRC_Essentials.zip",
-                'archive': 'zip',  # gzip compression
+                'archive': 'zip',  # zip compression
+                'delete_files': ['w_mpi-rt_p_4.1.0.023.exe'],
             },
             'dataset_atts': {
                 'units_multiplier': 1.,  # meter
@@ -118,7 +119,7 @@ class ResourceManager(object):
         'adcircnwat': {
             'resource_atts': {
                 'url': 'http://sms.aquaveo.com/adcircnwattides.zip',
-                'archive': 'zip',  # gzip compression
+                'archive': 'zip',  # zip compression
             },
             'dataset_atts': {
                 'units_multiplier': 1.,  # meter
@@ -217,6 +218,12 @@ class ResourceManager(object):
             else:
                 with open(path, 'wb') as f:
                     f.write(response.read())
+
+            if 'delete_files' in rsrc_atts:
+                for file in rsrc_atts['delete_files']:
+                    deletefile = os.path.join(destination_dir, file)
+                    if os.path.isfile(deletefile):
+                        os.remove(deletefile)
 
         return path
 

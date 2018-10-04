@@ -113,15 +113,25 @@ class TidalDB(object):
     """The base class for extracting tidal data from a database.
 
     Attributes:
-        attr2 (:obj:`list` of :obj:`float`): The starting days of the months (non-leap year).
-        pi180 (float): PI divided by 180.0.
         orbit (:obj:`OrbitVariables`): The orbit variables.
+        data (:obj:`list` of :obj:`pandas.DataFrame`): List of the constituent component DataFrames with one
+            per point location requested from get_components(). Intended return value of get_components().
+        resources (:obj:`harmonica.resource.ResourceManager`): Manages fetching of tidal data
 
     """
+    """(:obj:`list` of :obj:`float`): The starting days of the months (non-leap year)."""
     day_t = [0.0, 31.0, 59.0, 90.0, 120.0, 151.0, 181.0, 212.0, 243.0, 273.0, 304.0, 334.0]
+    """(float): PI divided by 180.0"""
     pi180 = math.pi/180.0
 
     def __init__(self, model):
+        """Base class constructor for the tidal extractors
+
+        Args:
+            model (str): The name of the model. One of: 'tpxo9', 'tpxo8', 'tpxo7', 'leprovost, 'adcircnwat', or
+                'adcircnepac'
+
+        """
         self.orbit = OrbitVariables()
         self.data = []
         self.resources = None
@@ -132,6 +142,10 @@ class TidalDB(object):
 
     @property
     def model(self):
+        """str: The name of the model. One of: 'tpxo9', 'tpxo8', 'tpxo7', 'leprovost, 'adcircnwat', or 'adcircnepac'
+
+        When setting the model to a different one than the current, required resources are downloaded.
+        """
         return self._model
 
     @model.setter
@@ -139,6 +153,13 @@ class TidalDB(object):
         self.change_model(value)
 
     def change_model(self, model):
+        """Change the extractor model, if different than the current, required resources are downloaded.
+
+        Args:
+            model (str): The name of the model. One of: 'tpxo9', 'tpxo8', 'tpxo7', 'leprovost, 'adcircnwat', or
+                'adcircnepac'
+
+        """
         model = model.lower()
         if model == 'tpxo7_2':
             model = 'tpxo7'
@@ -148,10 +169,36 @@ class TidalDB(object):
 
     @abstractmethod
     def get_components(self, locs, cons, positive_ph):
+        """Abstract method to get amplitude, phase, and speed of specified constituents at specified point locations.
+
+        Args:
+            locs (:obj:`list` of :obj:`tuple` of :obj:`float`): latitude [-90, 90] and longitude [-180 180] or [0 360]
+                of the requested points.
+            cons (:obj:`list` of :obj:`str`, optional): List of the constituent names to get amplitude and phase for. If
+                not supplied, all valid constituents will be extracted.
+            positive_ph (bool, optional): Indicate if the returned phase should be all positive [0 360] (True) or
+                [-180 180] (False, the default).
+
+        Returns:
+           :obj:`list` of :obj:`pandas.DataFrame`: Implementations should return a list of dataframes of constituent
+                information including amplitude (meters), phase (degrees) and speed (degrees/hour, UTC/GMT). The list is
+                parallel with locs, where each element in the return list is the constituent data for the corresponding
+                element in locs. Empty list on error. Note that function uses fluent interface pattern.
+
+        """
         pass
 
-    def have_constituent(self, a_name):
-        return a_name.upper() in self.resources.available_constituents()
+    def have_constituent(self, name):
+        """Determine if a constituent is valid for this tidal extractor.
+
+        Args:
+            name (str): The name of the constituent.
+
+        Returns:
+            bool: True if the constituent is valid, False otherwise
+
+        """
+        return name.upper() in self.resources.available_constituents()
 
     def get_nodal_factor(self, a_names, a_hour, a_day, a_month, a_year):
         """Get the nodal factor for specified constituents at a specified time.
@@ -232,7 +279,8 @@ class TidalDB(object):
         self.nfacs(a_year, day_julian, hrm)
         self.gterms(a_year, day_julian, a_hour, hrm)
 
-    def angle(self, a_number):
+    @staticmethod
+    def angle(a_number):
         """Converts the angle to be within 0-360.
 
         Args:
@@ -480,7 +528,8 @@ class TidalDB(object):
         for ih in range(0, 37):
             self.orbit.grterm[ih] = self.angle(self.orbit.grterm[ih])
 
-    def arctan(self, a_top, a_bottom):
+    @staticmethod
+    def arctan(a_top, a_bottom):
         """Determine the arctangent and place in correct quadrant.
 
         Args:
