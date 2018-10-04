@@ -15,9 +15,9 @@ from .tidal_database import convert_coords, NOAA_SPEEDS, TidalDB
 class TidalDBAdcircEnum(Enum):
     """Enum for specifying the type of an ADCIRC database.
 
-    TIDE_NWAT = North West Atlantic database
-    TIDE_NEPAC = North East Pacific database
-    TIDE_NONE = Enum end - legacy from SMS port.
+    TIDE_NWAT: North West Atlantic database
+    TIDE_NEPAC: North East Pacific database
+    TIDE_NONE: Enum end - legacy from SMS port.
 
     """
     TIDE_NWAT = 0  # North West Atlantic Tidal Database
@@ -29,12 +29,8 @@ class AdcircDB(TidalDB):
     """The class for extracting tidal data, specifically amplitude and phases, from an ADCIRC database.
 
     Attributes:
-        work_path (str): The path of the working directory.
         exe_with_path (str): The path of the ADCIRC executable.
         db_region (:obj: `TidalDBAdcircEnum`): The type of database.
-        cons (:obj:`list` of :obj:`str`): List of the constituents that are valid for the ADCIRC database
-        data (:obj:`list` of :obj:`pandas.DataFrame`): List of the constituent component DataFrames with one
-            per point location requested from get_components(). Intended return value of get_components().
         grid_no_path (str): Filename of *.grd file to use.
         harm_no_path (str): Filename of *.tdb file to use.
         temp_folder (str): Temporary folder to hold files in while running executables.
@@ -43,16 +39,15 @@ class AdcircDB(TidalDB):
 
     """
     def __init__(self, resource_dir=None, db_region="adcircnwat"):
-        """Get the amplitude and phase for the given constituents at the given points.
+        """Constructor for the ADCIRC tidal database extractor.
 
         Args:
-            work_path (str): The path of the working directory.
-            exe_with_path (str): The path of the ADCIRC executable.
-            db_region (:obj: `TidalDBAdcircEnum`): The db_region of database.
+            resource_dir (:obj:`str`, optional): Directory of the ADCIRC resources. If not provided will become a
+                subfolder of "data" in the harmonica package location.
+            db_region (:obj:`str`, optional): ADCIRC tidal database region. Valid options are 'adcircnwat' and\
+                'adcircnepac'
 
         """
-        self.cons = ['M2', 'S2', 'N2', 'K1', 'M4', 'O1', 'M6', 'Q1', 'K2']
-
         if db_region.lower() == "adcircnwat":
             self.db_region = TidalDBAdcircEnum.TIDE_NWAT
             self.grid_no_path = 'ec2001.grd'
@@ -99,7 +94,7 @@ class AdcircDB(TidalDB):
         # pre-allocate the return value
         constituents = []
         if not cons:
-            cons = self.cons  # Get all constituents by default
+            cons = self.resources.available_constituents()  # Get all constituents by default
 
         # Make sure point locations are valid lat/lon
         locs = convert_coords(locs)
@@ -191,18 +186,3 @@ class AdcircDB(TidalDB):
             os.rmdir(self.temp_folder)
 
         return self
-
-    def have_constituent(self, a_name):
-        """Check if teh given constituent is supported by the ADCIRC tidal database.
-
-        Args:
-            a_name (str): The name of the constituent to check.
-
-        Returns:
-            True if the constituent is supported by ADCIRC tidal databases, False for unsupported.
-
-        """
-        if a_name.upper() in self.cons:
-            return True
-        else:
-            return False

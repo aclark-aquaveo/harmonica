@@ -10,6 +10,12 @@ class Constituents(TidalDB):
     """Harmonica tidal constituents."""
 
     def __init__(self, model=ResourceManager.DEFAULT_RESOURCE):
+        """Constructor for the TPXO tidal extractor.
+
+        Args:
+            model (:obj:`str`, optional): The name of the TPXO model. One of: 'tpxo9', 'tpxo8', 'tpxo7'.
+                ResourceManager.DEFAULT_RESOURCE if not specified.
+        """
         # constituent information dataframe:
         #   amplitude (meters)
         #   phase (degrees)
@@ -17,21 +23,22 @@ class Constituents(TidalDB):
         super().__init__(model)
 
     def get_components(self, locs, cons=None, positive_ph=False):
-        """Query the a tide model database and return amplitude, phase and speed for a location.
-
-        Currently written to query tpxo7, tpxo8, and tpxo9 tide models.
+        """Get the amplitude, phase, and speed of specified constituents at specified point locations.
 
         Args:
-            loc (tuple(float, float)): latitude [-90, 90] and longitude [-180 180] or [0 360] of the requested point.
-            model (str, optional): Model name, defaults to 'tpxo8'.
-            cons (list(str), optional): List of constituents requested, defaults to all constituents if None or empty.
+            locs (:obj:`list` of :obj:`tuple` of :obj:`float`): latitude [-90, 90] and longitude [-180 180] or [0 360]
+                of the requested points.
+            cons (:obj:`list` of :obj:`str`, optional): List of the constituent names to get amplitude and phase for. If
+                not supplied, all valid constituents will be extracted.
             positive_ph (bool, optional): Indicate if the returned phase should be all positive [0 360] (True) or
                 [-180 180] (False, the default).
 
         Returns:
-            A dataframe of constituent information including amplitude (meters), phase (degrees) and
-                speed (degrees/hour, UTC/GMT)
-                
+           :obj:`list` of :obj:`pandas.DataFrame`: A list of dataframes of constituent information including
+                amplitude (meters), phase (degrees) and speed (degrees/hour, UTC/GMT). The list is parallel with locs,
+                where each element in the return list is the constituent data for the corresponding element in locs.
+                Empty list on error. Note that function uses fluent interface pattern.
+
         """
         self.data = [pd.DataFrame(columns=['amplitude', 'phase', 'speed']) for _ in range(len(locs))]
 
@@ -71,7 +78,7 @@ class Constituents(TidalDB):
                         (1. - dx) * dy,         # w01 :: bottom right
                         dx * (1. - dy),         # w10 :: top left
                         dx * dy                 # w11 :: top right
-                    ]).reshape((2,2))
+                    ]).reshape((2, 2))
                     weights = weights / weights.sum()
                     # devise the slice to subset surrounding values
                     query = np.s_[idx['con'], idx['left']:idx['right']+1, idx['bottom']:idx['top']+1]
