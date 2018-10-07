@@ -11,7 +11,7 @@ from harmonica import config
 class ResourceManager(object):
     """Harmonica resource manager to retrieve and access tide models"""
 
-    # Dictionay of model information
+    # Dictionary of model information
     RESOURCES = {
         'tpxo9': {
             'resource_atts': {
@@ -19,9 +19,9 @@ class ResourceManager(object):
                 'archive': 'gz',
             },
             'dataset_atts': {
-                'units_multiplier': 1., # meters
+                'units_multiplier': 1.,  # meters
             },
-            'consts': [{  # grouped by dimensionally compatiable files
+            'consts': [{  # grouped by dimensionally compatible files
                 '2N2': 'tpxo9_netcdf/h_tpxo9.v1.nc',
                 'K1': 'tpxo9_netcdf/h_tpxo9.v1.nc',
                 'K2': 'tpxo9_netcdf/h_tpxo9.v1.nc',
@@ -45,9 +45,9 @@ class ResourceManager(object):
                 'archive': None,
             },
             'dataset_atts': {
-                'units_multiplier': 0.001, # mm to meter
+                'units_multiplier': 0.001,  # mm to meter
             },
-            'consts': [ # grouped by dimensionally compatiable files 
+            'consts': [  # grouped by dimensionally compatible files
                 {  # 1/30 degree
                     'K1': 'hf.k1_tpxo8_atlas_30c_v1.nc',
                     'K2': 'hf.k2_tpxo8_atlas_30c_v1.nc',
@@ -70,12 +70,12 @@ class ResourceManager(object):
         'tpxo7': {
             'resource_atts': {
                 'url': "ftp://ftp.oce.orst.edu/dist/tides/Global/tpxo7.2_netcdf.tar.Z",
-                'archive': 'gz', # gzip compression
+                'archive': 'gz',  # gzip compression
             },
             'dataset_atts': {
-                'units_multiplier': 1., # meter
+                'units_multiplier': 1.,  # meter
             },
-            'consts': [{  # grouped by dimensionally compatiable files
+            'consts': [{  # grouped by dimensionally compatible files
                 'K1': 'DATA/h_tpxo7.2.nc',
                 'K2': 'DATA/h_tpxo7.2.nc',
                 'M2': 'DATA/h_tpxo7.2.nc',
@@ -95,25 +95,27 @@ class ResourceManager(object):
             'resource_atts': {
                 'url': "http://sms.aquaveo.com/ADCIRC_Essentials.zip",
                 'archive': 'zip',  # zip compression
-                'delete_files': ['w_mpi-rt_p_4.1.0.023.exe'],
+                'delete_files': ['w_mpi-rt_p_4.1.0.023.exe'],  # This is should go away when we host new NetCDF file.
             },
             'dataset_atts': {
                 'units_multiplier': 1.,  # meter
+                'num_lats': 361,
+                'num_lons': 720
             },
             'consts': [{  # grouped by dimensionally compatible files
-                'K1': 'LeProvost/K1.legi',
-                'K2': 'LeProvost/K2.legi',
-                'M2': 'LeProvost/M2.legi',
-                'N2': 'LeProvost/N2.legi',
-                'O1': 'LeProvost/O1.legi',
-                'P1': 'LeProvost/P1.legi',
-                'Q1': 'LeProvost/Q1.legi',
-                'S2': 'LeProvost/S2.legi',
-                'NU2': 'LeProvost/NU2.legi',
-                'MU2': 'LeProvost/MU2.legi',
-                '2N2': 'LeProvost/2N2.legi',
-                'T2': 'LeProvost/T2.legi',
-                'L2': 'LeProvost/L2.legi',
+                'K1': 'LeProvost/leprovost_tidal_db.nc',
+                'K2': 'LeProvost/leprovost_tidal_db.nc',
+                'M2': 'LeProvost/leprovost_tidal_db.nc',
+                'N2': 'LeProvost/leprovost_tidal_db.nc',
+                'O1': 'LeProvost/leprovost_tidal_db.nc',
+                'P1': 'LeProvost/leprovost_tidal_db.nc',
+                'Q1': 'LeProvost/leprovost_tidal_db.nc',
+                'S2': 'LeProvost/leprovost_tidal_db.nc',
+                'NU2': 'LeProvost/leprovost_tidal_db.nc',
+                'MU2': 'LeProvost/leprovost_tidal_db.nc',
+                '2N2': 'LeProvost/leprovost_tidal_db.nc',
+                'T2': 'LeProvost/leprovost_tidal_db.nc',
+                'L2': 'LeProvost/leprovost_tidal_db.nc',
             }, ],
         },
         'adcircnwat': {
@@ -122,7 +124,7 @@ class ResourceManager(object):
                 'archive': 'zip',  # zip compression
             },
             'dataset_atts': {
-                'units_multiplier': 1.,  # meter
+                'units_multiplier': 1.,  # mete
             },
             'consts': [{  # grouped by dimensionally compatible files
                 'M2': 'adcircnwattides.exe',
@@ -139,7 +141,7 @@ class ResourceManager(object):
         'adcircnepac': {
             'resource_atts': {
                 'url': 'http://sms.aquaveo.com/adcircnepactides.zip',
-                'archive': 'zip',  # gzip compression
+                'archive': 'zip',  # zip compression
             },
             'dataset_atts': {
                 'units_multiplier': 1.,  # meter
@@ -165,7 +167,6 @@ class ResourceManager(object):
         self.model = model
         self.model_atts = self.RESOURCES[self.model]
         self.datasets = []
-
 
     def __del__(self):
         for d in self.datasets:
@@ -202,7 +203,7 @@ class ResourceManager(object):
                         print(str(e))
                     else:
                         rsrcs = set(c for sl in [x.values() for x in self.model_atts['consts']] for c in sl)
-                        tar.extractall(path = destination_dir, members = [m for m in tar.getmembers() if m.name in rsrcs])
+                        tar.extractall(path=destination_dir, members=[m for m in tar.getmembers() if m.name in rsrcs])
                         tar.close()
                 elif rsrc_atts['archive'] == 'zip':  # Unzip .zip files
                     zip_file = os.path.join(destination_dir, os.path.basename(resource) + '.zip')
@@ -219,11 +220,12 @@ class ResourceManager(object):
                 with open(path, 'wb') as f:
                     f.write(response.read())
 
+            # This is should go away when we host new NetCDF file.
             if 'delete_files' in rsrc_atts:
                 for file in rsrc_atts['delete_files']:
-                    deletefile = os.path.join(destination_dir, file)
-                    if os.path.isfile(deletefile):
-                        os.remove(deletefile)
+                    delete_file = os.path.join(destination_dir, file)
+                    if os.path.isfile(delete_file):
+                        os.remove(delete_file)
 
         return path
 

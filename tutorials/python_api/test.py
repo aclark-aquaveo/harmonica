@@ -62,21 +62,26 @@ if __name__ == "__main__":
     # Get tidal harmonic components for a list of points using the ADCIRC,
     # LeProvost, and TPXO databases.
     ad_atlantic_comps = ad_alantic_db.get_components(atlantic, good_cons)
-    ad_pacific_comps = ad_pacific_db.get_components(pacific, good_cons)
-    leprovost_comps = leprovost_db.get_components(all_points, good_cons)
-    tpxo_comps = tpxo_db.get_components(all_points, good_cons, True)
-
     f.write("ADCIRC Atlantic components:\n")
     for pt in ad_atlantic_comps.data:
-        f.write(pt.to_string() + "\n\n")
+        f.write(pt.sort_index().to_string() + "\n\n")
+
     f.write("ADCIRC Pacific components:\n")
+    f.flush()
+    ad_pacific_comps = ad_pacific_db.get_components(pacific, good_cons)
     for pt in ad_pacific_comps.data:
-        f.write(pt.to_string() + "\n\n")
+        f.write(pt.sort_index().to_string() + "\n\n")
+
     f.write("LeProvost components:\n")
+    f.flush()
+    leprovost_comps = leprovost_db.get_components(all_points, good_cons)
     for pt in leprovost_comps.data:
-        f.write(pt.to_string() + "\n\n")
+        f.write(pt.sort_index().to_string() + "\n\n")
+
     f.write("TPX0 components:\n")
+    f.flush()
+    tpxo_comps = tpxo_db.get_components(all_points, good_cons, True)
     for pt in tpxo_comps.data:
-        f.write(pt.to_string() + "\n\n")
+        f.write(pt.sort_index().to_string() + "\n\n")
 
     f.close()

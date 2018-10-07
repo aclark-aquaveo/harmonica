@@ -5,7 +5,7 @@ This module contains the tidal database extractor for the LeProvost tidal databa
 """
 
 import math
-import os
+import numpy
 
 import pandas as pd
 
@@ -52,6 +52,8 @@ class LeProvostDB(TidalDB):
         # If no constituents specified, extract all valid constituents.
         if not cons:
             cons = self.resources.available_constituents()
+        else:  # Be case-insensitive
+            cons = [con.upper() for con in cons]
 
         # Make sure point locations are valid lat/lon
         locs = convert_coords(locs)
@@ -59,122 +61,107 @@ class LeProvostDB(TidalDB):
             return self  # ERROR: Not in latitude/longitude
 
         self.data = [pd.DataFrame(columns=['amplitude', 'phase', 'speed']) for _ in range(len(locs))]
+        dataset_atts = self.resources.model_atts['dataset_atts']
 
-        deg2rad = 1.0 / 180.0 * math.pi
-        rad2deg = 1.0 / deg2rad
-        # read the file for each constituent
-        for con in cons:
-            if self.have_constituent(con):
-                con = con.upper()
-            else:
-                continue
-            filename = os.path.join(self.resource_dir, self.resources.model_atts["consts"][0][con])
-            with open(filename, 'r') as f:
-                # 30 columns in the file
-                lon_min, lon_max = map(float, f.readline().split())
-                lat_min, lat_max = map(float, f.readline().split())
-                d_lon, d_lat = map(float, f.readline().split())
-                n_lon, n_lat = map(int, f.readline().split())
-                undef_a, undef_p = map(float, f.readline().split())
-                if undef_a != undef_p:
-                    # there was an error, the undefined values should be the same
-                    return []
-                else:
-                    undef = undef_a
-                all_lines = f.readlines()
-                g_amp = [[0.0 for _ in range(n_lat)] for _ in range(n_lon)]
-                g_pha = [[0.0 for _ in range(n_lat)] for _ in range(n_lon)]
-                cur_line = -1
-                for lat in range(n_lat):
-                    for lon in range(0, n_lon-1, 30):
-                        cur_line += 1
-                        cur_val = 0
-                        line_vals = all_lines[cur_line].split()
-                        for k in range(lon, lon+30):
-                            g_amp[k][lat] = float(line_vals[cur_val])
-                            cur_val += 1
-                        cur_line += 1
-                        cur_val = 0
-                        line_vals = all_lines[cur_line].split()
-                        for k in range(lon, lon+30):
-                            g_pha[k][lat] = float(line_vals[cur_val])
-                            cur_val += 1
+        n_lat = dataset_atts['num_lats']
+        n_lon = dataset_atts['num_lons']
+        lat_min = -90.0
+        lon_min = -180.0
+        d_lat = 180.0 / (n_lat - 1)
+        d_lon = 360.0 / n_lon
 
-            # Extract components for each point for this constituent
-            for i, pt in enumerate(locs):
-                y_lat = pt[0]
-                x_lon = pt[1]
-                if x_lon < 0.0:
-                    x_lon = x_lon + 360.0
-                if x_lon > 180.0:
-                    x_lon = x_lon - 360.0
-                ixlo = int((x_lon - lon_min) / d_lon) + 1
-                xlonlo = lon_min + (ixlo - 1) * d_lon
-                ixhi = ixlo + 1
-                if ixlo == n_lon:
-                    ixhi = 1
-                iylo = int((y_lat - lat_min) / d_lon) + 1
-                ylatlo = lat_min + (iylo - 1) * d_lat
-                iyhi = iylo + 1
-                ixlo -= 1
-                ixhi -= 1
-                iylo -= 1
-                iyhi -= 1
-                skip = False
+        for d in self.resources.get_datasets(cons):
+            nc_names = [x.strip().upper() for x in d.spectrum.values[0]]
+            for con in set(cons) & set(nc_names):
+                # Extract components for each point for this constituent
+                con_idx = nc_names.index(con)
+                for i, pt in enumerate(locs):
+                    y_lat = pt[0]
+                    x_lon = pt[1]
+                    if x_lon < 0.0:
+                        x_lon = x_lon + 360.0
+                    if x_lon > 180.0:
+                        x_lon = x_lon - 360.0
+                    xlo = int((x_lon - lon_min) / d_lon) + 1
+                    xlonlo = lon_min + (xlo - 1) * d_lon
+                    xhi = xlo + 1
+                    if xlo == n_lon:
+                        xhi = 1
+                    ylo = int((y_lat - lat_min) / d_lon) + 1
+                    ylatlo = lat_min + (ylo - 1) * d_lat
+                    yhi = ylo + 1
+                    xlo -= 1
+                    xhi -= 1
+                    ylo -= 1
+                    yhi -= 1
+                    skip = False
 
-                if (ixlo > n_lon or ixhi > n_lon or iyhi > n_lat or iylo > n_lat or ixlo < 0 or ixhi < 0 or iyhi < 0 or
-                        iylo < 0):
-                    skip = True
-                elif (g_amp[ixlo][iyhi] == undef and g_amp[ixhi][iyhi] == undef and g_amp[ixlo][iylo] == undef and
-                      g_amp[ixhi][iylo] == undef):
-                    skip = True
-                elif (g_pha[ixlo][iyhi] == undef and g_pha[ixhi][iyhi] == undef and g_pha[ixlo][iylo] == undef and
-                      g_pha[ixhi][iylo] == undef):
-                    skip = True
+                    # Make sure lat/lon coordinate is in the domain.
+                    if (xlo > n_lon or xhi > n_lon or yhi > n_lat or ylo > n_lat or xlo < 0 or xhi < 0 or yhi < 0
+                            or ylo < 0):
+                        skip = True
+                    else:  # Make sure we have at least one neighbor with an active amplitude value.
+                        # Read potential contributing amplitudes from the file.
+                        xlo_yhi_amp = d.Ha[0][con_idx][xlo][yhi]
+                        xlo_ylo_amp = d.Ha[0][con_idx][xlo][ylo]
+                        xhi_yhi_amp = d.Ha[0][con_idx][xhi][yhi]
+                        xhi_ylo_amp = d.Ha[0][con_idx][xhi][ylo]
+                        if (numpy.isnan(xlo_yhi_amp) and numpy.isnan(xhi_yhi_amp) and
+                                numpy.isnan(xlo_ylo_amp) and numpy.isnan(xhi_ylo_amp)):
+                            skip = True
+                        else:  # Make sure we have at least one neighbor with an active phase value.
+                            # Read potential contributing phases from the file.
+                            xlo_yhi_phase = d.Hg[0][con_idx][xlo][yhi]
+                            xlo_ylo_phase = d.Hg[0][con_idx][xlo][ylo]
+                            xhi_yhi_phase = d.Hg[0][con_idx][xhi][yhi]
+                            xhi_ylo_phase = d.Hg[0][con_idx][xhi][ylo]
+                            if (numpy.isnan(xlo_yhi_phase) and numpy.isnan(xhi_yhi_phase) and
+                                    numpy.isnan(xlo_ylo_phase) and numpy.isnan(xhi_ylo_phase)):
+                                skip = True
 
-                if skip:
-                    self.data[i].loc[con] = [0.0, 0.0, 0.0]
-                else:
-                    xratio = (x_lon - xlonlo) / d_lon
-                    yratio = (y_lat - ylatlo) / d_lat
-                    xcos1 = g_amp[ixlo][iyhi] * math.cos(deg2rad * g_pha[ixlo][iyhi])
-                    xcos2 = g_amp[ixhi][iyhi] * math.cos(deg2rad * g_pha[ixhi][iyhi])
-                    xcos3 = g_amp[ixlo][iylo] * math.cos(deg2rad * g_pha[ixlo][iylo])
-                    xcos4 = g_amp[ixhi][iylo] * math.cos(deg2rad * g_pha[ixhi][iylo])
-                    xsin1 = g_amp[ixlo][iyhi] * math.sin(deg2rad * g_pha[ixlo][iyhi])
-                    xsin2 = g_amp[ixhi][iyhi] * math.sin(deg2rad * g_pha[ixhi][iyhi])
-                    xsin3 = g_amp[ixlo][iylo] * math.sin(deg2rad * g_pha[ixlo][iylo])
-                    xsin4 = g_amp[ixhi][iylo] * math.sin(deg2rad * g_pha[ixhi][iylo])
+                    if skip:
+                        self.data[i].loc[con] = [0.0, 0.0, 0.0]
+                    else:
+                        xratio = (x_lon - xlonlo) / d_lon
+                        yratio = (y_lat - ylatlo) / d_lat
+                        xcos1 = xlo_yhi_amp * math.cos(math.radians(xlo_yhi_phase))
+                        xcos2 = xhi_yhi_amp * math.cos(math.radians(xhi_yhi_phase))
+                        xcos3 = xlo_ylo_amp * math.cos(math.radians(xlo_ylo_phase))
+                        xcos4 = xhi_ylo_amp * math.cos(math.radians(xhi_ylo_phase))
+                        xsin1 = xlo_yhi_amp * math.sin(math.radians(xlo_yhi_phase))
+                        xsin2 = xhi_yhi_amp * math.sin(math.radians(xhi_yhi_phase))
+                        xsin3 = xlo_ylo_amp * math.sin(math.radians(xlo_ylo_phase))
+                        xsin4 = xhi_ylo_amp * math.sin(math.radians(xhi_ylo_phase))
 
-                    xcos = 0.0
-                    xsin = 0.0
-                    denom = 0.0
-                    if g_amp[ixlo][iyhi] != undef and g_pha[ixlo][iyhi] != undef:
-                        xcos = xcos + xcos1 * (1.0 - xratio) * yratio
-                        xsin = xsin + xsin1 * (1.0 - xratio) * yratio
-                        denom = denom + (1.0 - xratio) * yratio
-                    if g_amp[ixhi][iyhi] != undef and g_pha[ixhi][iyhi] != undef:
-                        xcos = xcos + xcos2 * xratio * yratio
-                        xsin = xsin + xsin2 * xratio * yratio
-                        denom = denom + xratio * yratio
-                    if g_amp[ixlo][iylo] != undef and g_pha[ixlo][iylo] != undef:
-                        xcos = xcos + xcos3 * (1.0 - xratio) * (1 - yratio)
-                        xsin = xsin + xsin3 * (1.0 - xratio) * (1 - yratio)
-                        denom = denom + (1.0 - xratio) * (1.0 - yratio)
-                    if g_amp[ixhi][iylo] != undef and g_pha[ixhi][iylo] != undef:
-                        xcos = xcos + xcos4 * (1.0 - yratio) * xratio
-                        xsin = xsin + xsin4 * (1.0 - yratio) * xratio
-                        denom = denom + (1.0 - yratio) * xratio
+                        xcos = 0.0
+                        xsin = 0.0
+                        denom = 0.0
+                        if not numpy.isnan(xlo_yhi_amp) and not numpy.isnan(xlo_yhi_phase):
+                            xcos = xcos + xcos1 * (1.0 - xratio) * yratio
+                            xsin = xsin + xsin1 * (1.0 - xratio) * yratio
+                            denom = denom + (1.0 - xratio) * yratio
+                        if not numpy.isnan(xhi_yhi_amp) and not numpy.isnan(xhi_yhi_phase):
+                            xcos = xcos + xcos2 * xratio * yratio
+                            xsin = xsin + xsin2 * xratio * yratio
+                            denom = denom + xratio * yratio
+                        if not numpy.isnan(xlo_ylo_amp) and not numpy.isnan(xlo_ylo_phase):
+                            xcos = xcos + xcos3 * (1.0 - xratio) * (1 - yratio)
+                            xsin = xsin + xsin3 * (1.0 - xratio) * (1 - yratio)
+                            denom = denom + (1.0 - xratio) * (1.0 - yratio)
+                        if not numpy.isnan(xhi_ylo_amp) and not numpy.isnan(xhi_ylo_phase):
+                            xcos = xcos + xcos4 * (1.0 - yratio) * xratio
+                            xsin = xsin + xsin4 * (1.0 - yratio) * xratio
+                            denom = denom + (1.0 - yratio) * xratio
 
-                    xcos = xcos / denom
-                    xsin = xsin / denom
+                        xcos = xcos / denom
+                        xsin = xsin / denom
 
-                    amp = math.sqrt(xcos * xcos + xsin * xsin)
-                    phase = rad2deg * math.acos(xcos / amp)
-                    amp /= 100.0
-                    if xsin < 0.0:
-                        phase = 360.0 - phase
-                    phase += (360. if positive_ph and phase < 0 else 0)
-                    self.data[i].loc[con] = [amp, phase, NOAA_SPEEDS[con]]
+                        amp = math.sqrt(xcos * xcos + xsin * xsin)
+                        phase = math.degrees(math.acos(xcos / amp))
+                        amp /= 100.0
+                        if xsin < 0.0:
+                            phase = 360.0 - phase
+                        phase += (360. if positive_ph and phase < 0 else 0)
+                        self.data[i].loc[con] = [amp, phase, NOAA_SPEEDS[con]]
 
         return self
