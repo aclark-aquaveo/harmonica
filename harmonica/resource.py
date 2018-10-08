@@ -95,7 +95,6 @@ class ResourceManager(object):
             'resource_atts': {
                 'url': "http://sms.aquaveo.com/ADCIRC_Essentials.zip",
                 'archive': 'zip',  # zip compression
-                'delete_files': ['w_mpi-rt_p_4.1.0.023.exe'],  # This is should go away when we host new NetCDF file.
             },
             'dataset_atts': {
                 'units_multiplier': 1.,  # meter
@@ -220,13 +219,6 @@ class ResourceManager(object):
                 with open(path, 'wb') as f:
                     f.write(response.read())
 
-            # This is should go away when we host new NetCDF file.
-            if 'delete_files' in rsrc_atts:
-                for file in rsrc_atts['delete_files']:
-                    delete_file = os.path.join(destination_dir, file)
-                    if os.path.isfile(delete_file):
-                        os.remove(delete_file)
-
         return path
 
     def download_model(self, resource_dir=None):
@@ -253,7 +245,7 @@ class ResourceManager(object):
         available = self.available_constituents()
         if any(const not in available for const in constituents):
             raise ValueError('Constituent not recognized.')
-        # handle compatiable files together
+        # handle compatible files together
         self.datasets = []
         for const_group in self.model_atts['consts']:
             rsrcs = set(const_group[const] for const in set(constituents) & set(const_group))
