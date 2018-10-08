@@ -1,5 +1,6 @@
 import os
 import shutil
+import ssl
 import urllib.request
 from zipfile import ZipFile
 
@@ -93,7 +94,7 @@ class ResourceManager(object):
         },
         'leprovost': {
             'resource_atts': {
-                'url': "https://filecloud.aquaveo.com/public.php/webdav",
+                'url': 'https://sms.aquaveo.com.s3.amazonaws.com/leprovost_tidal_db.zip',
                 'archive': 'zip',  # zip compression
             },
             'dataset_atts': {
@@ -243,37 +244,12 @@ class ResourceManager(object):
 
         print('Downloading resource: {}'.format(url))
 
-        #path = os.path.join(destination_dir, resource)
-        #with urllib.request.urlopen(url) as response:
-        #    if rsrc_atts['archive'] is not None:
-        #        if rsrc_atts['archive'] == 'gz':
-        #            import tarfile
-        #
-        #            try:
-        #                tar = tarfile.open(mode='r:{}'.format(rsrc_atts['archive']), fileobj=response)
-        #            except IOError as e:
-        #                print(str(e))
-        #            else:
-        #                rsrcs = set(c for sl in [x.values() for x in self.model_atts['consts']] for c in sl)
-        #                tar.extractall(path=destination_dir, members=[m for m in tar.getmembers() if m.name in rsrcs])
-        #                tar.close()
-        #        elif rsrc_atts['archive'] == 'zip':  # Unzip .zip files
-        #            zip_file = os.path.join(destination_dir, os.path.basename(resource) + '.zip')
-        #            with open(zip_file, 'wb') as out_file:
-        #                shutil.copyfileobj(response, out_file)
-        #            # Unzip the files
-        #            print("Unzipping files to: {}".format(destination_dir))
-        #            with ZipFile(zip_file, 'r') as unzipper:
-        #                # Extract all the files in the archive
-        #                unzipper.extractall(path=destination_dir)
-        #            print("Deleting zip file: {}".format(zip_file))
-        #            os.remove(zip_file)  # delete the zip file
-        #    else:
-        #        with open(path, 'wb') as f:
-        #            f.write(response.read())
-
         path = os.path.join(destination_dir, resource)
-        with urllib.request.urlopen(url) as response:
+        # TODO: We probably don't want to disable SSL certificate verification. Don't pass in a SSL context once
+        # TODO:     the link on the Aquaveo website works without bypassing certificate verification.
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        with urllib.request.urlopen(url, context=ctx) as response:
             if rsrc_atts['archive'] is not None:
                 if rsrc_atts['archive'] == 'gz':
                     import tarfile
