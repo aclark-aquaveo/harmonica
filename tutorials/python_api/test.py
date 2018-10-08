@@ -11,13 +11,10 @@ if __name__ == "__main__":
                         help="path to the ADCIRC Atlantic database")
     parser.add_argument("-p", "--adcirc_pacific", default=None,
                         help="path to the ADCIRC Pacific database")
-    parser.add_argument("-l", "--leprovost", default=None,
-                        help="path to the LeProvost database folder")
     args = vars(parser.parse_args())
 
     adcirc_atlantic = args["adcirc_atlantic"]
     adcir_pacific = args["adcirc_pacific"]
-    leprovost = args["leprovost"]
 
     # Need to be in (lat, lon), not (x, y)
     # Invert commented list declarations to test [-180, 180] vs. [0, 360] ranges.
@@ -41,7 +38,7 @@ if __name__ == "__main__":
     # Create an ADCIRC database for the Pacific locations.
     ad_pacific_db = harmonica.adcirc_database.AdcircDB(adcir_pacific, "adcircnepac")
     # Create a LeProvost database for all locations.
-    leprovost_db = harmonica.leprovost_database.LeProvostDB(leprovost)
+    leprovost_db = harmonica.leprovost_database.LeProvostDB()
     # Create a TPXO database for all locations.
     tpxo_db = harmonica.tidal_constituents.Constituents('tpxo8')
 

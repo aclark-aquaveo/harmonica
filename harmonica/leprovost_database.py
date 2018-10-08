@@ -15,21 +15,13 @@ from .tidal_database import convert_coords, NOAA_SPEEDS, TidalDB
 class LeProvostDB(TidalDB):
     """Extractor class for the LeProvost tidal database.
 
-    Attributes:
-        resource_dir (str): Fully qualified path to a folder containing the LeProvost \*.legi files
-
     """
-    def __init__(self, resource_dir=None):
+    def __init__(self):
         """Constructor for the LeProvost tidal database extractor.
-
-        Args:
-            resource_dir (:obj:`str`, optional): Fully qualified path to a folder containing the LeProvost *.legi files.
-                If not provided will be "harmonica/data/leprovost' where harmonica is the location of the pacakage.
 
         """
         # self.debugger = open("debug.txt", "w")
         super().__init__("leprovost")
-        self.resource_dir = self.resources.download_model(resource_dir)
 
     def get_components(self, locs, cons=None, positive_ph=False):
         """Get the amplitude, phase, and speed of specified constituents at specified point locations.
@@ -76,12 +68,7 @@ class LeProvostDB(TidalDB):
                 # Extract components for each point for this constituent
                 con_idx = nc_names.index(con)
                 for i, pt in enumerate(locs):
-                    y_lat = pt[0]
-                    x_lon = pt[1]
-                    if x_lon < 0.0:
-                        x_lon = x_lon + 360.0
-                    if x_lon > 180.0:
-                        x_lon = x_lon - 360.0
+                    y_lat, x_lon = pt  # lat,lon not x,y
                     xlo = int((x_lon - lon_min) / d_lon) + 1
                     xlonlo = lon_min + (xlo - 1) * d_lon
                     xhi = xlo + 1
