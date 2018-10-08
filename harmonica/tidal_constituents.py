@@ -80,7 +80,6 @@ class Constituents(TidalDB):
                         dx * dy                 # w11 :: top right
                     ]).reshape((2, 2))
                     weights = weights / weights.sum()
-                    # TODO: This is slick. We should be doing this everywhere we can.
                     # devise the slice to subset surrounding values
                     query = np.s_[idx['con'], idx['left']:idx['right']+1, idx['bottom']:idx['top']+1]
                     # calculate the weighted tide from real and imaginary components

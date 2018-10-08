@@ -55,12 +55,14 @@ NOAA_SPEEDS = {
 }
 
 
-def convert_coords(coords):
-    """Convert latitude coordinates to [-180, 180].
+def convert_coords(coords, zero_to_360=False):
+    """Convert latitude coordinates to [-180, 180] or [0, 360].
 
     Args:
         coords (:obj:`list` of :obj:`tuple` of :obj:`float`): latitude [-90, 90] and longitude [-180 180] or [0 360]
             of the requested point.
+        zero_to_360 (:obj:`bool`, optional) If True, coordinates will be converted to the [0, 360] range. If False,
+            coordinates will be converted to the [-180, 180] range.
 
     Returns:
         :obj:`list` of :obj:`tuple` of :obj:`float`: The list of converted coordinates. None if a coordinate out of
@@ -72,10 +74,12 @@ def convert_coords(coords):
         y_lat = pt[0]
         x_lon = pt[1]
         if x_lon < 0.0:
-            x_lon = x_lon + 360.0
-        if x_lon > 180.0:
-            x_lon = x_lon - 360.0
-        if x_lon > 180.0 or x_lon < -180.0 or y_lat > 90.0 or y_lat < -90.0:
+            x_lon += 360.0
+        if not zero_to_360 and x_lon > 180.0:
+            x_lon -= 360.0
+        if y_lat > 90.0 or y_lat < -90.0 or (  # Invalid latitude
+                    not zero_to_360 and (x_lon > 180.0 or x_lon < -180.0)) or (  # Invalid [-180, 180]
+                    zero_to_360 and (x_lon > 360.0 or x_lon < 0.0)):  # Invalid [0, 360]
             # ERROR: Not in latitude/longitude
             return None
         else:

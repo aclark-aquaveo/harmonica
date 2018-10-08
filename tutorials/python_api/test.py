@@ -41,6 +41,9 @@ if __name__ == "__main__":
     leprovost_db = harmonica.leprovost_database.LeProvostDB()
     # Create a TPXO database for all locations.
     tpxo_db = harmonica.tidal_constituents.Constituents('tpxo8')
+    # Create a FES2014 database for all locations. License restrictions prevent us
+    # from distributing the FES2014 resources. Must have local files already to use.
+    # fes2014_db = harmonica.leprovost_database.LeProvostDB('fes2014')
 
     # Get nodal factor data from the ADCIRC and LeProvost tidal databases
     ad_al_nodal_factor = ad_alantic_db.get_nodal_factor(good_cons, 15, 30, 8, 2018)
@@ -80,5 +83,11 @@ if __name__ == "__main__":
     tpxo_comps = tpxo_db.get_components(all_points, good_cons, True)
     for pt in tpxo_comps.data:
         f.write(pt.sort_index().to_string() + "\n\n")
+
+    # f.write("FES2014 components:\n")
+    # f.flush()
+    # fes2014_comps = fes2014_db.get_components(all_points, good_cons)
+    # for pt in fes2014_comps.data:
+    #     f.write(pt.sort_index().to_string() + "\n\n")
 
     f.close()

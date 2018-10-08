@@ -93,28 +93,77 @@ class ResourceManager(object):
         },
         'leprovost': {
             'resource_atts': {
-                'url': "http://sms.aquaveo.com/ADCIRC_Essentials.zip",
+                'url': "https://filecloud.aquaveo.com/public.php/webdav",
                 'archive': 'zip',  # zip compression
             },
             'dataset_atts': {
                 'units_multiplier': 1.,  # meter
                 'num_lats': 361,
-                'num_lons': 720
+                'num_lons': 720,
+                'min_lon': -180.0
             },
             'consts': [{  # grouped by dimensionally compatible files
-                'K1': 'LeProvost/leprovost_tidal_db.nc',
-                'K2': 'LeProvost/leprovost_tidal_db.nc',
-                'M2': 'LeProvost/leprovost_tidal_db.nc',
-                'N2': 'LeProvost/leprovost_tidal_db.nc',
-                'O1': 'LeProvost/leprovost_tidal_db.nc',
-                'P1': 'LeProvost/leprovost_tidal_db.nc',
-                'Q1': 'LeProvost/leprovost_tidal_db.nc',
-                'S2': 'LeProvost/leprovost_tidal_db.nc',
-                'NU2': 'LeProvost/leprovost_tidal_db.nc',
-                'MU2': 'LeProvost/leprovost_tidal_db.nc',
-                '2N2': 'LeProvost/leprovost_tidal_db.nc',
-                'T2': 'LeProvost/leprovost_tidal_db.nc',
-                'L2': 'LeProvost/leprovost_tidal_db.nc',
+                'K1': 'leprovost_tidal_db.nc',
+                'K2': 'leprovost_tidal_db.nc',
+                'M2': 'leprovost_tidal_db.nc',
+                'N2': 'leprovost_tidal_db.nc',
+                'O1': 'leprovost_tidal_db.nc',
+                'P1': 'leprovost_tidal_db.nc',
+                'Q1': 'leprovost_tidal_db.nc',
+                'S2': 'leprovost_tidal_db.nc',
+                'NU2': 'leprovost_tidal_db.nc',
+                'MU2': 'leprovost_tidal_db.nc',
+                '2N2': 'leprovost_tidal_db.nc',
+                'T2': 'leprovost_tidal_db.nc',
+                'L2': 'leprovost_tidal_db.nc',
+            }, ],
+        },
+        'fes2014': {  # Resources must already exist. Licensing restrictions prevent
+            'resource_atts': {
+                'url': None,
+                'archive': None,
+            },
+            'dataset_atts': {
+                'units_multiplier': 1.,  # meter
+                'num_lats': 2881,
+                'num_lons': 5760,
+                'min_lon': 0.0
+            },
+            'consts': [{  # grouped by dimensionally compatible files
+                '2N2': '2n2.nc',
+                'EPS2': 'eps2.nc',
+                'J1': 'j1.nc',
+                'K1': 'k1.nc',
+                'K2': 'k2.nc',
+                'L2': 'l2.nc',
+                'LA2': 'la2.nc',
+                'M2': 'm2.nc',
+                'M3': 'm3.nc',
+                'M4': 'm4.nc',
+                'M6': 'm6.nc',
+                'M8': 'm8.nc',
+                'MF': 'mf.nc',
+                'MKS2': 'mks2.nc',
+                'MM': 'mm.nc',
+                'MN4': 'mn4.nc',
+                'MS4': 'ms4.nc',
+                'MSF': 'msf.nc',
+                'MSQM': 'msqm.nc',
+                'MTM': 'mtm.nc',
+                'MU2': 'mu2.nc',
+                'N2': 'n2.nc',
+                'N4': 'n4.nc',
+                'NU2': 'nu2.nc',
+                'O1': 'o1.nc',
+                'P1': 'p1.nc',
+                'Q1': 'q1.nc',
+                'R2': 'r2.nc',
+                'S1': 's1.nc',
+                'S2': 's2.nc',
+                'S4': 's4.nc',
+                'SA': 'sa.nc',
+                'SSA': 'ssa.nc',
+                'T2': 't2.nc',
             }, ],
         },
         'adcircnwat': {
@@ -185,17 +234,49 @@ class ResourceManager(object):
 
         rsrc_atts = self.model_atts['resource_atts']
         url = rsrc_atts['url']
+        # Check if we can download resources for this model.
+        if url is None:
+            raise ValueError("Automatic fetching of resources is not available for the {} model.".format(self.model))
+
         if rsrc_atts['archive'] is None:
             url = "".join((url, resource))
 
         print('Downloading resource: {}'.format(url))
+
+        #path = os.path.join(destination_dir, resource)
+        #with urllib.request.urlopen(url) as response:
+        #    if rsrc_atts['archive'] is not None:
+        #        if rsrc_atts['archive'] == 'gz':
+        #            import tarfile
+        #
+        #            try:
+        #                tar = tarfile.open(mode='r:{}'.format(rsrc_atts['archive']), fileobj=response)
+        #            except IOError as e:
+        #                print(str(e))
+        #            else:
+        #                rsrcs = set(c for sl in [x.values() for x in self.model_atts['consts']] for c in sl)
+        #                tar.extractall(path=destination_dir, members=[m for m in tar.getmembers() if m.name in rsrcs])
+        #                tar.close()
+        #        elif rsrc_atts['archive'] == 'zip':  # Unzip .zip files
+        #            zip_file = os.path.join(destination_dir, os.path.basename(resource) + '.zip')
+        #            with open(zip_file, 'wb') as out_file:
+        #                shutil.copyfileobj(response, out_file)
+        #            # Unzip the files
+        #            print("Unzipping files to: {}".format(destination_dir))
+        #            with ZipFile(zip_file, 'r') as unzipper:
+        #                # Extract all the files in the archive
+        #                unzipper.extractall(path=destination_dir)
+        #            print("Deleting zip file: {}".format(zip_file))
+        #            os.remove(zip_file)  # delete the zip file
+        #    else:
+        #        with open(path, 'wb') as f:
+        #            f.write(response.read())
 
         path = os.path.join(destination_dir, resource)
         with urllib.request.urlopen(url) as response:
             if rsrc_atts['archive'] is not None:
                 if rsrc_atts['archive'] == 'gz':
                     import tarfile
-
                     try:
                         tar = tarfile.open(mode='r:{}'.format(rsrc_atts['archive']), fileobj=response)
                     except IOError as e:

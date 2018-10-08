@@ -39,14 +39,14 @@ degrees. Note that we have split locations in the Atlantic and Pacific. LeProvos
 TPXO support all ocean locations, but the ADCIRC database is restricted to one or the other.
 
 .. literalinclude:: ../../tutorials/python_api/test.py
-   :lines: 22-36
+   :lines: 19-33
    :lineno-match:
 
-The next section of code sets up the tidal harmonic extraction interface. For the ADCIRC
+The next section of code sets up the tidal harmonic extraction interfaces. For the ADCIRC
 extractors, the tidal region must be specified at construction.
 
 .. literalinclude:: ../../tutorials/python_api/test.py
-   :lines: 39-46
+   :lines: 36-43
    :lineno-match:
 
 The ADCIRC and LeProvost extractors can also provide frequencies, earth tidal reduction factors, amplitudes, nodal factors,

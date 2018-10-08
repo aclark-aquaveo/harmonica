@@ -6,6 +6,7 @@ This module contains the tidal database extractor for the LeProvost tidal databa
 
 import math
 import numpy
+import os
 
 import pandas as pd
 
@@ -16,12 +17,15 @@ class LeProvostDB(TidalDB):
     """Extractor class for the LeProvost tidal database.
 
     """
-    def __init__(self):
+    def __init__(self, model="leprovost"):
         """Constructor for the LeProvost tidal database extractor.
 
         """
+        # Make sure this is a valid LeProvost version ('leprovost' or 'fes2014')
+        if model.lower() not in ['leprovost', 'fes2014']:
+            raise ValueError("{} is not a supported LeProvost model. Must be 'leprovost' or 'fes2014'.")
         # self.debugger = open("debug.txt", "w")
-        super().__init__("leprovost")
+        super().__init__(model)
 
     def get_components(self, locs, cons=None, positive_ph=False):
         """Get the amplitude, phase, and speed of specified constituents at specified point locations.
@@ -48,7 +52,7 @@ class LeProvostDB(TidalDB):
             cons = [con.upper() for con in cons]
 
         # Make sure point locations are valid lat/lon
-        locs = convert_coords(locs)
+        locs = convert_coords(locs, self.model == "fes2014")
         if not locs:
             return self  # ERROR: Not in latitude/longitude
 
@@ -58,17 +62,24 @@ class LeProvostDB(TidalDB):
         n_lat = dataset_atts['num_lats']
         n_lon = dataset_atts['num_lons']
         lat_min = -90.0
-        lon_min = -180.0
+        lon_min = dataset_atts['min_lon']
         d_lat = 180.0 / (n_lat - 1)
         d_lon = 360.0 / n_lon
 
-        for d in self.resources.get_datasets(cons):
-            nc_names = [x.strip().upper() for x in d.spectrum.values[0]]
+        for file_idx, d in enumerate(self.resources.get_datasets(cons)):
+            if self.model == 'leprovost':
+                nc_names = [x.strip().upper() for x in d.spectrum.values[0]]
+            else:
+                # TODO: Probably need to find a better way to get the constituent name. _file_obj is undocumented, so
+                # TODO:     there is no guarantee this functionality will be maintained.
+                nc_names = [os.path.splitext(os.path.basename(dset.ds.filepath()))[0].upper() for
+                            dset in d._file_obj.file_objs]
             for con in set(cons) & set(nc_names):
                 # Extract components for each point for this constituent
                 con_idx = nc_names.index(con)
                 for i, pt in enumerate(locs):
                     y_lat, x_lon = pt  # lat,lon not x,y
+                    print("y_lat, x_lon=({}, {})".format(y_lat, x_lon))
                     xlo = int((x_lon - lon_min) / d_lon) + 1
                     xlonlo = lon_min + (xlo - 1) * d_lon
                     xhi = xlo + 1
@@ -88,20 +99,27 @@ class LeProvostDB(TidalDB):
                             or ylo < 0):
                         skip = True
                     else:  # Make sure we have at least one neighbor with an active amplitude value.
+                        if self.model == 'leprovost':  # All constituents in single file
+                            amp_dset = d.amplitude[0]
+                            phase_dset = d.phase[0]
+                        else:  # FES 2014 format - file per constituent
+                            amp_dset = d.amplitude
+                            phase_dset = d.phase
+
                         # Read potential contributing amplitudes from the file.
-                        xlo_yhi_amp = d.Ha[0][con_idx][xlo][yhi]
-                        xlo_ylo_amp = d.Ha[0][con_idx][xlo][ylo]
-                        xhi_yhi_amp = d.Ha[0][con_idx][xhi][yhi]
-                        xhi_ylo_amp = d.Ha[0][con_idx][xhi][ylo]
+                        xlo_yhi_amp = amp_dset[con_idx][yhi][xlo]
+                        xlo_ylo_amp = amp_dset[con_idx][ylo][xlo]
+                        xhi_yhi_amp = amp_dset[con_idx][yhi][xhi]
+                        xhi_ylo_amp = amp_dset[con_idx][ylo][xhi]
                         if (numpy.isnan(xlo_yhi_amp) and numpy.isnan(xhi_yhi_amp) and
                                 numpy.isnan(xlo_ylo_amp) and numpy.isnan(xhi_ylo_amp)):
                             skip = True
                         else:  # Make sure we have at least one neighbor with an active phase value.
                             # Read potential contributing phases from the file.
-                            xlo_yhi_phase = d.Hg[0][con_idx][xlo][yhi]
-                            xlo_ylo_phase = d.Hg[0][con_idx][xlo][ylo]
-                            xhi_yhi_phase = d.Hg[0][con_idx][xhi][yhi]
-                            xhi_ylo_phase = d.Hg[0][con_idx][xhi][ylo]
+                            xlo_yhi_phase = phase_dset[con_idx][yhi][xlo]
+                            xlo_ylo_phase = phase_dset[con_idx][ylo][xlo]
+                            xhi_yhi_phase = phase_dset[con_idx][yhi][xhi]
+                            xhi_ylo_phase = phase_dset[con_idx][ylo][xhi]
                             if (numpy.isnan(xlo_yhi_phase) and numpy.isnan(xhi_yhi_phase) and
                                     numpy.isnan(xlo_ylo_phase) and numpy.isnan(xhi_ylo_phase)):
                                 skip = True
