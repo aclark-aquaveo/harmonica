@@ -1,6 +1,5 @@
 import os
 import shutil
-import ssl
 import urllib.request
 from zipfile import ZipFile
 
@@ -94,7 +93,7 @@ class ResourceManager(object):
         },
         'leprovost': {
             'resource_atts': {
-                'url': 'https://sms.aquaveo.com.s3.amazonaws.com/leprovost_tidal_db.zip',
+                'url': 'http://sms.aquaveo.com/leprovost_tidal_db.zip',
                 'archive': 'zip',  # zip compression
             },
             'dataset_atts': {
@@ -245,11 +244,7 @@ class ResourceManager(object):
         print('Downloading resource: {}'.format(url))
 
         path = os.path.join(destination_dir, resource)
-        # TODO: We probably don't want to disable SSL certificate verification. Don't pass in a SSL context once
-        # TODO:     the link on the Aquaveo website works without bypassing certificate verification.
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        with urllib.request.urlopen(url, context=ctx) as response:
+        with urllib.request.urlopen(url) as response:
             if rsrc_atts['archive'] is not None:
                 if rsrc_atts['archive'] == 'gz':
                     import tarfile
