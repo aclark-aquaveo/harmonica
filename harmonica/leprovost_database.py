@@ -79,7 +79,6 @@ class LeProvostDB(TidalDB):
                 con_idx = nc_names.index(con)
                 for i, pt in enumerate(locs):
                     y_lat, x_lon = pt  # lat,lon not x,y
-                    print("y_lat, x_lon=({}, {})".format(y_lat, x_lon))
                     xlo = int((x_lon - lon_min) / d_lon) + 1
                     xlonlo = lon_min + (xlo - 1) * d_lon
                     xhi = xlo + 1
