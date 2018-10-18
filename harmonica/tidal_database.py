@@ -1,6 +1,5 @@
 #! python3
 
-from enum import Enum
 from abc import ABCMeta, abstractmethod
 import math
 
@@ -87,11 +86,6 @@ def convert_coords(coords, zero_to_360=False):
     return coords
 
 
-class TidalDBEnum(Enum):
-    TIDAL_DB_LEPROVOST = 0
-    TIDAL_DB_ADCIRC = 1
-
-
 class OrbitVariables(object):
     def __init__(self):
         self.dh = 0.0
@@ -168,6 +162,7 @@ class TidalDB(object):
         model = model.lower()
         if model == 'tpxo7_2':
             model = 'tpxo7'
+
         if model != self._model:
             self._model = model
             self.resources = ResourceManager(self._model)
@@ -205,15 +200,15 @@ class TidalDB(object):
         """
         return name.upper() in self.resources.available_constituents()
 
-    def get_nodal_factor(self, a_names, a_hour, a_day, a_month, a_year):
+    def get_nodal_factor(self, names, hour, day, month, year):
         """Get the nodal factor for specified constituents at a specified time.
 
         Args:
-            a_names (:obj:`list` of :obj:`str`): Names of the constituents to get nodal factors for
-            a_hour (float): The hour of the specified time. Can be fractional
-            a_day (int): The day of the specified time.
-            a_month (int): The month of the specified time.
-            a_year (int): The year of the specified time.
+            names (:obj:`list` of :obj:`str`): Names of the constituents to get nodal factors for
+            hour (float): The hour of the specified time. Can be fractional
+            day (int): The day of the specified time.
+            month (int): The month of the specified time.
+            year (int): The year of the specified time.
 
         Returns:
             :obj:`pandas.DataFrame`: Constituent data frames. Each row contains frequency, earth tidal reduction factor,
@@ -253,8 +248,8 @@ class TidalDB(object):
 
         con_data = pd.DataFrame(columns=["amplitude", "frequency", "earth_tide_reduction_factor",
                                          "equilibrium_argument", "nodal_factor"])
-        self.get_eq_args(a_hour, a_day, a_month, a_year)
-        for idx, name in enumerate(a_names):
+        self.get_eq_args(hour, day, month, year)
+        for idx, name in enumerate(names):
             name = name.upper()
             try:
                 name_idx = con_names.index(name)

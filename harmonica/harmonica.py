@@ -1,4 +1,4 @@
-from .tidal_constituents import Constituents, NOAA_SPEEDS
+from .tpxo_database import TpxoDB, NOAA_SPEEDS
 from .resource import ResourceManager
 from pytides.astro import astro
 from pytides.tide import Tide as pyTide
@@ -28,7 +28,7 @@ class Tide:
         # tide dataframe:
         #   date_times (year, month, day, hour, minute, second; UTC/GMT)
         self.data = pd.DataFrame(columns=['datetimes', 'water_level'])
-        self.constituents = Constituents()
+        self.constituents = TpxoDB()
 
     def reconstruct_tide(self, loc, times, model=ResourceManager.DEFAULT_RESOURCE,
             cons=[], positive_ph=False, offset=None):

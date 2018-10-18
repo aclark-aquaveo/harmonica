@@ -37,6 +37,8 @@ class LeProvostDB(TidalDB):
                 not supplied, all valid constituents will be extracted.
             positive_ph (bool, optional): Indicate if the returned phase should be all positive [0 360] (True) or
                 [-180 180] (False, the default).
+                        model (:obj:`str`, optional): Name of the tidal model to use to query for the data. If not provided, current
+                model will be used. If a model other than the current is provided, current model is switched.
 
         Returns:
            :obj:`list` of :obj:`pandas.DataFrame`: A list of dataframes of constituent information including

@@ -1,4 +1,4 @@
-from ..tidal_constituents import Constituents
+from ..tpxo_database import TpxoDB
 from .common import add_common_args, add_loc_model_args, add_const_out_args
 import argparse
 import sys
@@ -37,8 +37,8 @@ def parse_args(args):
 
 
 def execute(args):
-    cons = Constituents().get_components([args.lat, args.lon], model=args.model, cons=args.cons,
-        positive_ph=args.positive_phase)
+    cons = TpxoDB().get_components([args.lat, args.lon], model=args.model, cons=args.cons,
+                                   positive_ph=args.positive_phase)
     out = cons.data.to_csv(args.output, sep='\t', header=True, index=True, index_label='constituent')
     if args.output is None:
         print(out)

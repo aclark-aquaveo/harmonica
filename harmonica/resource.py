@@ -166,10 +166,10 @@ class ResourceManager(object):
                 'T2': 't2.nc',
             }, ],
         },
-        'adcircnwat': {
+        'adcirc': {
             'resource_atts': {
-                'url': '',
-                'archive': 'tar',  # tar compression
+                'url': 'http://sms.aquaveo.com/',
+                'archive': None,  # Uncompressed NetCDF file
             },
             'dataset_atts': {
                 'units_multiplier': 1.,  # meter
@@ -214,26 +214,74 @@ class ResourceManager(object):
                 'SSA': 'all_adcirc.nc',
             }, ],
         },
-        'adcircnepac': {
-            'resource_atts': {
-                'url': '',
-                'archive': 'zip',  # zip compression
-            },
-            'dataset_atts': {
-                'units_multiplier': 1.,  # meter
-            },
-            'consts': [{  # grouped by dimensionally compatible files
-                'M2': 'all_adcirc.nc',
-                'S2': 'all_adcirc.nc',
-                'N2': 'all_adcirc.nc',
-                'K1': 'all_adcirc.nc',
-                'M4': 'all_adcirc.nc',
-                'O1': 'all_adcirc.nc',
-                'M6': 'all_adcirc.nc',
-                'Q1': 'all_adcirc.nc',
-                'K2': 'all_adcirc.nc',
-            }, ],
-        },
+        # 'adcircnwat': {
+        #     'resource_atts': {
+        #         'url': '',
+        #         'archive': 'tar',  # tar compression
+        #     },
+        #     'dataset_atts': {
+        #         'units_multiplier': 1.,  # meter
+        #     },
+        #     'consts': [{  # grouped by dimensionally compatible files
+        #         'M2': 'all_adcirc.nc',
+        #         'S2': 'all_adcirc.nc',
+        #         'N2': 'all_adcirc.nc',
+        #         'K1': 'all_adcirc.nc',
+        #         'M4': 'all_adcirc.nc',
+        #         'O1': 'all_adcirc.nc',
+        #         'M6': 'all_adcirc.nc',
+        #         'Q1': 'all_adcirc.nc',
+        #         'K2': 'all_adcirc.nc',
+        #         'L2': 'all_adcirc.nc',
+        #         '2N2': 'all_adcirc.nc',
+        #         'R2': 'all_adcirc.nc',
+        #         'T2': 'all_adcirc.nc',
+        #         'LAMBDA2': 'all_adcirc.nc',
+        #         'MU2': 'all_adcirc.nc',
+        #         'NU2': 'all_adcirc.nc',
+        #         'J1': 'all_adcirc.nc',
+        #         'M1': 'all_adcirc.nc',
+        #         'OO1': 'all_adcirc.nc',
+        #         'P1': 'all_adcirc.nc',
+        #         '2Q1': 'all_adcirc.nc',
+        #         'RHO1': 'all_adcirc.nc',
+        #         'M8': 'all_adcirc.nc',
+        #         'S4': 'all_adcirc.nc',
+        #         'S6': 'all_adcirc.nc',
+        #         'M3': 'all_adcirc.nc',
+        #         'S1': 'all_adcirc.nc',
+        #         'MK3': 'all_adcirc.nc',
+        #         '2MK3': 'all_adcirc.nc',
+        #         'MN4': 'all_adcirc.nc',
+        #         'MS4': 'all_adcirc.nc',
+        #         '2SM2': 'all_adcirc.nc',
+        #         'MF': 'all_adcirc.nc',
+        #         'MSF': 'all_adcirc.nc',
+        #         'MM': 'all_adcirc.nc',
+        #         'SA': 'all_adcirc.nc',
+        #         'SSA': 'all_adcirc.nc',
+        #     }, ],
+        # },
+        # 'adcircnepac': {
+        #     'resource_atts': {
+        #         'url': '',
+        #         'archive': 'zip',  # zip compression
+        #     },
+        #     'dataset_atts': {
+        #         'units_multiplier': 1.,  # meter
+        #     },
+        #     'consts': [{  # grouped by dimensionally compatible files
+        #         'M2': 'all_adcirc.nc',
+        #         'S2': 'all_adcirc.nc',
+        #         'N2': 'all_adcirc.nc',
+        #         'K1': 'all_adcirc.nc',
+        #         'M4': 'all_adcirc.nc',
+        #         'O1': 'all_adcirc.nc',
+        #         'M6': 'all_adcirc.nc',
+        #         'Q1': 'all_adcirc.nc',
+        #         'K2': 'all_adcirc.nc',
+        #     }, ],
+        # },
     }
     DEFAULT_RESOURCE = 'tpxo9'
 

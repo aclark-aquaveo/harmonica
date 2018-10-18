@@ -1,4 +1,4 @@
-from ..tidal_constituents import Constituents
+from ..tpxo_database import TpxoDB
 from ..harmonica import Tide
 from .common import add_common_args, add_loc_model_args, add_const_out_args
 from pytides.tide import Tide as pyTide
