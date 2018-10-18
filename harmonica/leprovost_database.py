@@ -10,7 +10,7 @@ import os
 
 import pandas as pd
 
-from .tidal_database import convert_coords, NOAA_SPEEDS, TidalDB
+from .tidal_database import convert_coords, get_complex_components, NOAA_SPEEDS, TidalDB
 
 
 class LeProvostDB(TidalDB):
@@ -117,46 +117,46 @@ class LeProvostDB(TidalDB):
                             skip = True
                         else:  # Make sure we have at least one neighbor with an active phase value.
                             # Read potential contributing phases from the file.
-                            xlo_yhi_phase = phase_dset[con_idx][yhi][xlo]
-                            xlo_ylo_phase = phase_dset[con_idx][ylo][xlo]
-                            xhi_yhi_phase = phase_dset[con_idx][yhi][xhi]
-                            xhi_ylo_phase = phase_dset[con_idx][ylo][xhi]
+                            xlo_yhi_phase = math.radians(phase_dset[con_idx][yhi][xlo])
+                            xlo_ylo_phase = math.radians(phase_dset[con_idx][ylo][xlo])
+                            xhi_yhi_phase = math.radians(phase_dset[con_idx][yhi][xhi])
+                            xhi_ylo_phase = math.radians(phase_dset[con_idx][ylo][xhi])
                             if (numpy.isnan(xlo_yhi_phase) and numpy.isnan(xhi_yhi_phase) and
                                     numpy.isnan(xlo_ylo_phase) and numpy.isnan(xhi_ylo_phase)):
                                 skip = True
 
                     if skip:
-                        self.data[i].loc[con] = [0.0, 0.0, 0.0]
+                        self.data[i].loc[con] = [numpy.nan, numpy.nan, numpy.nan]
                     else:
                         xratio = (x_lon - xlonlo) / d_lon
                         yratio = (y_lat - ylatlo) / d_lat
-                        xcos1 = xlo_yhi_amp * math.cos(math.radians(xlo_yhi_phase))
-                        xcos2 = xhi_yhi_amp * math.cos(math.radians(xhi_yhi_phase))
-                        xcos3 = xlo_ylo_amp * math.cos(math.radians(xlo_ylo_phase))
-                        xcos4 = xhi_ylo_amp * math.cos(math.radians(xhi_ylo_phase))
-                        xsin1 = xlo_yhi_amp * math.sin(math.radians(xlo_yhi_phase))
-                        xsin2 = xhi_yhi_amp * math.sin(math.radians(xhi_yhi_phase))
-                        xsin3 = xlo_ylo_amp * math.sin(math.radians(xlo_ylo_phase))
-                        xsin4 = xhi_ylo_amp * math.sin(math.radians(xhi_ylo_phase))
 
+                        # Get the real and imaginary components from the amplitude and phases in the file. It
+                        # would be better if these values were stored in the file like TPXO.
+                        complex_comps = get_complex_components(
+                            amps=[xlo_yhi_amp, xhi_yhi_amp, xlo_ylo_amp, xhi_ylo_amp],
+                            phases=[xlo_yhi_phase, xhi_yhi_phase, xlo_ylo_phase, xhi_ylo_phase],
+                        )
+
+                        # Perform bi-linear interpolation of the corners to the target point.
                         xcos = 0.0
                         xsin = 0.0
                         denom = 0.0
                         if not numpy.isnan(xlo_yhi_amp) and not numpy.isnan(xlo_yhi_phase):
-                            xcos = xcos + xcos1 * (1.0 - xratio) * yratio
-                            xsin = xsin + xsin1 * (1.0 - xratio) * yratio
+                            xcos = xcos + complex_comps[0][0] * (1.0 - xratio) * yratio
+                            xsin = xsin + complex_comps[0][1] * (1.0 - xratio) * yratio
                             denom = denom + (1.0 - xratio) * yratio
                         if not numpy.isnan(xhi_yhi_amp) and not numpy.isnan(xhi_yhi_phase):
-                            xcos = xcos + xcos2 * xratio * yratio
-                            xsin = xsin + xsin2 * xratio * yratio
+                            xcos = xcos + complex_comps[1][0] * xratio * yratio
+                            xsin = xsin + complex_comps[1][1] * xratio * yratio
                             denom = denom + xratio * yratio
                         if not numpy.isnan(xlo_ylo_amp) and not numpy.isnan(xlo_ylo_phase):
-                            xcos = xcos + xcos3 * (1.0 - xratio) * (1 - yratio)
-                            xsin = xsin + xsin3 * (1.0 - xratio) * (1 - yratio)
+                            xcos = xcos + complex_comps[2][0] * (1.0 - xratio) * (1 - yratio)
+                            xsin = xsin + complex_comps[2][1] * (1.0 - xratio) * (1 - yratio)
                             denom = denom + (1.0 - xratio) * (1.0 - yratio)
                         if not numpy.isnan(xhi_ylo_amp) and not numpy.isnan(xhi_ylo_phase):
-                            xcos = xcos + xcos4 * (1.0 - yratio) * xratio
-                            xsin = xsin + xsin4 * (1.0 - yratio) * xratio
+                            xcos = xcos + complex_comps[3][0] * (1.0 - yratio) * xratio
+                            xsin = xsin + complex_comps[3][1] * (1.0 - yratio) * xratio
                             denom = denom + (1.0 - yratio) * xratio
 
                         xcos = xcos / denom
@@ -168,6 +168,7 @@ class LeProvostDB(TidalDB):
                         if xsin < 0.0:
                             phase = 360.0 - phase
                         phase += (360. if positive_ph and phase < 0 else 0)
-                        self.data[i].loc[con] = [amp, phase, NOAA_SPEEDS[con]]
+                        speed = NOAA_SPEEDS[con] if con in NOAA_SPEEDS else numpy.nan
+                        self.data[i].loc[con] = [amp, phase, speed]
 
         return self

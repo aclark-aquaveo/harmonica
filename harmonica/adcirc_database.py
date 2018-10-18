@@ -2,10 +2,11 @@
 
 import math
 
+import numpy
 import pandas as pd
 import xmsinterp_py
 
-from .tidal_database import convert_coords, NOAA_SPEEDS, TidalDB
+from .tidal_database import convert_coords, get_complex_components, NOAA_SPEEDS, TidalDB
 
 
 class AdcircDB(TidalDB):
@@ -16,7 +17,7 @@ class AdcircDB(TidalDB):
         """Constructor for the ADCIRC tidal database extractor.
 
         """
-        super().__init__('adcirc')
+        super().__init__('adcirc2015')
         self.resources.download_model(None)
 
     def get_components(self, locs, cons=None, positive_ph=False):
@@ -61,7 +62,7 @@ class AdcircDB(TidalDB):
         tri_search.tris_to_search(mesh_pts, tri_list)
 
         points_and_weights = []
-        for pt in locs:
+        for i, pt in enumerate(locs):
             pt_flip = (pt[1], pt[0])
             tri_idx = tri_search.tri_containing_pt(pt_flip)
             if tri_idx != -1:
@@ -73,44 +74,51 @@ class AdcircDB(TidalDB):
                 x3, y3, z3 = mesh_pts[pt_3]
                 x = pt_flip[0]
                 y = pt_flip[1]
+                # Compute barocentric weights
                 ta = abs((x2*y3-x3*y2)-(x1*y3-x3*y1)+(x1*y2-x2*y1))
                 w1 = ((x-x3)*(y2-y3)+(x2-x3)*(y3-y))/ta
                 w2 = ((x-x1)*(y3-y1)-(y-y1)*(x3-x1))/ta
                 w3 = ((y-y1)*(x2-x1)-(x-x1)*(y2-y1))/ta
-                points_and_weights.append(((pt_1, pt_2, pt_3), (w1, w2, w3)))
+                points_and_weights.append((i, (pt_1, pt_2, pt_3), (w1, w2, w3)))
+            else:  # Outside domain, return NaN for all constituents
+                for con in cons:
+                    self.data[i].loc[con] = [numpy.nan, numpy.nan, numpy.nan]
 
         for con in cons:
             con_amp_name = con + "_amplitude"
             con_pha_name = con + "_phase"
             con_amp = con_dsets[con_amp_name][0]
             con_pha = con_dsets[con_pha_name][0]
-            for i, (pts, weights) in enumerate(points_and_weights):
-                amp1 = float(con_amp[pts[0]])
-                amp2 = float(con_amp[pts[1]])
-                amp3 = float(con_amp[pts[2]])
-                pha1 = math.radians(float(con_pha[pts[0]]))
-                pha2 = math.radians(float(con_pha[pts[1]]))
-                pha3 = math.radians(float(con_pha[pts[2]]))
+            for i, pts, weights in points_and_weights:
+                amps = [float(con_amp[pts[0]]), float(con_amp[pts[1]]), float(con_amp[pts[2]])]
+                phases = [
+                    math.radians(float(con_pha[pts[0]])),
+                    math.radians(float(con_pha[pts[1]])),
+                    math.radians(float(con_pha[pts[2]])),
+                ]
 
-                self.data[i].loc[con] = [0.0, 0.0, 0.0]
-                c1r = amp1*math.cos(pha1)
-                c1i = amp1*math.sin(pha1)
-                c2r = amp2*math.cos(pha2)
-                c2i = amp2*math.sin(pha2)
-                c3r = amp3*math.cos(pha3)
-                c3i = amp3*math.sin(pha3)
-                ctr = c1r*weights[0]+c2r*weights[1]+c3r*weights[2]
-                cti = c1i*weights[0]+c2i*weights[1]+c3i*weights[2]
+                # Get the real and imaginary components from the amplitude and phases in the file. It
+                # would be better if these values were stored in the file like TPXO.
+                complex_components = get_complex_components(amps, phases)
+                ctr = (
+                    complex_components[0][0] * weights[0] +
+                    complex_components[1][0] * weights[1] +
+                    complex_components[2][0] * weights[2]
+                )
+                cti = (
+                    complex_components[0][1] * weights[0] +
+                    complex_components[1][1] * weights[1] +
+                    complex_components[2][1] * weights[2]
+                )
 
-                new_amp = math.sqrt(ctr*ctr+cti*cti)
-                self.data[i].loc[con]['amplitude'] = new_amp
+                new_amp = math.sqrt(ctr * ctr + cti * cti)
                 if new_amp == 0.0:
                     new_phase = 0.0
                 else:
                     new_phase = math.degrees(math.acos(ctr / new_amp))
                     if cti < 0.0:
                         new_phase = 360.0 - new_phase
-                self.data[i].loc[con]['phase'] = new_phase
-                self.data[i].loc[con]['speed'] = NOAA_SPEEDS[con.upper()]
+                speed = NOAA_SPEEDS[con] if con in NOAA_SPEEDS else numpy.nan
+                self.data[i].loc[con] = [new_amp, new_phase, speed]
 
         return self

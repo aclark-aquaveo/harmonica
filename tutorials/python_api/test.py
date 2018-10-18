@@ -29,7 +29,7 @@ if __name__ == "__main__":
     for pt in leprovost_comps.data:
         f.write(pt.sort_index().to_string() + "\n\n")
 
-    ad_atlantic_comps = constituents.get_components(all_points, cons, model='adcirc')
+    ad_atlantic_comps = constituents.get_components(all_points, cons, model='adcirc2015')
     f.write("ADCIRC components:\n")
     for pt in ad_atlantic_comps.data:
         f.write(pt.sort_index().to_string() + "\n\n")

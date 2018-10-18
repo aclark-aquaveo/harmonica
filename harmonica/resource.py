@@ -166,7 +166,7 @@ class ResourceManager(object):
                 'T2': 't2.nc',
             }, ],
         },
-        'adcirc': {
+        'adcirc2015': {
             'resource_atts': {
                 'url': 'http://sms.aquaveo.com/',
                 'archive': None,  # Uncompressed NetCDF file

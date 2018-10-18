@@ -8,27 +8,39 @@ class Constituents:
     leprovost_models = ['fes2014', 'leprovost']
 
     def __init__(self, model):
-        self.current_model = None
-        self.switch_model(model.lower())
+        self._current_model = None
+        self.change_model(model.lower())
 
-    def switch_model(self, new_model):
-        if self.current_model and self.current_model.model == new_model:
+    @property
+    def data(self):
+        """:obj:`Pandas.DataFrame` Access the underlying Pandas data frame of this constituent object."""
+        if self._current_model:
+            return self._current_model.data
+        return []
+
+    @data.setter
+    def data(self, value):
+        if self._current_model:
+            self._current_model.data = value
+
+    def change_model(self, new_model):
+        if self._current_model and self._current_model.model == new_model:
             return  # Already have the correct impl for this model, nothing to do.
 
         if new_model in self.tpxo_models:  # Switch to a TPXO model
             # If we already have a TPXO impl, change its version if necessary.
-            if self.current_model and self.current_model.model in self.tpxo_models:
-                self.current_model.change_model(new_model)
+            if self._current_model and self._current_model.model in self.tpxo_models:
+                self._current_model.change_model(new_model)
             else:  # Construct a new TPXO impl.
-                self.current_model = TpxoDB(new_model)
+                self._current_model = TpxoDB(new_model)
         elif new_model in self.leprovost_models:
             # If we already have a LeProvost impl, change its version if necessary.
-            if self.current_model and self.current_model.model in self.leprovost_models:
-                self.current_model.change_model(new_model)
+            if self._current_model and self._current_model.model in self.leprovost_models:
+                self._current_model.change_model(new_model)
             else:  # Construct a new LeProvost impl.
-                self.current_model = LeProvostDB(new_model)
-        elif new_model == 'adcirc':
-            self.current_model = AdcircDB()
+                self._current_model = LeProvostDB(new_model)
+        elif new_model == 'adcirc2015':
+            self._current_model = AdcircDB()
         else:
             raise ValueError("Model not supported - {}".format(new_model))
 
@@ -52,9 +64,9 @@ class Constituents:
                 element in locs. Empty list on error. Note that function uses fluent interface pattern.
 
         """
-        if model and model.lower() != self.current_model.model:
-            self.switch_model(model.lower())
-        return self.current_model.get_components(locs, cons, positive_ph)
+        if model and model.lower() != self._current_model.model:
+            self.change_model(model.lower())
+        return self._current_model.get_components(locs, cons, positive_ph)
 
     def get_nodal_factor(self, names, hour, day, month, year):
         """Get the nodal factor for specified constituents at a specified time.
@@ -72,4 +84,4 @@ class Constituents:
                 constituent name.
 
         """
-        return self.current_model.get_nodal_factor(names, hour, day, month, year)
+        return self._current_model.get_nodal_factor(names, hour, day, month, year)

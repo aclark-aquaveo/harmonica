@@ -18,11 +18,11 @@ M2     1.1736  113.8  28.984104
 N2     0.1628   50.8  28.439730
 S2     0.1318  101.1  30.000000
 
-    amplitude  phase  speed
-K1        0.0    0.0    0.0
-M2        0.0    0.0    0.0
-N2        0.0    0.0    0.0
-S2        0.0    0.0    0.0
+   amplitude phase speed
+K1       NaN   NaN   NaN
+M2       NaN   NaN   NaN
+N2       NaN   NaN   NaN
+S2       NaN   NaN   NaN
 
     amplitude       phase      speed
 K1   0.428306  233.851748  15.041069
