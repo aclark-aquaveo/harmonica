@@ -80,15 +80,14 @@ class Constituents:
             self.change_model(model.lower())
         return self._current_model.get_components(locs, cons, positive_ph)
 
-    def get_nodal_factor(self, names, hour, day, month, year):
+    def get_nodal_factor(self, names, timestamp, timestamp_middle=None):
         """Get the nodal factor for specified constituents at a specified time.
 
         Args:
             names (:obj:`list` of :obj:`str`): Names of the constituents to get nodal factors for
-            hour (float): The hour of the specified time. Can be fractional
-            day (int): The day of the specified time.
-            month (int): The month of the specified time.
-            year (int): The year of the specified time.
+            timestamp (:obj:`datetime.datetime`): Stat date and time to extract constituent arguments at
+            timestamp_middle (:obj:`datetime.datetime`, optional): Date and time to consider as the middle of the
+                series. By default, just uses the start day with half the hours.
 
         Returns:
             :obj:`pandas.DataFrame`: Constituent data frames. Each row contains frequency, earth tidal reduction factor,
@@ -96,4 +95,4 @@ class Constituents:
                 constituent name.
 
         """
-        return self._current_model.get_nodal_factor(names, hour, day, month, year)
+        return self._current_model.get_nodal_factor(names, timestamp, timestamp_middle)

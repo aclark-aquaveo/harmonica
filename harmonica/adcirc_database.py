@@ -134,7 +134,7 @@ class AdcircDB(TidalDB):
                     new_phase = math.degrees(math.acos(ctr / new_amp))
                     if cti < 0.0:
                         new_phase = 360.0 - new_phase
-                speed = NOAA_SPEEDS[con] if con in NOAA_SPEEDS else numpy.nan
+                speed = NOAA_SPEEDS[con][0] if con in NOAA_SPEEDS else numpy.nan
                 self.data[i].loc[con] = [new_amp, new_phase, speed]
 
         return self

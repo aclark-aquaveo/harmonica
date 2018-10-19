@@ -176,7 +176,7 @@ class LeProvostDB(TidalDB):
                         if xsin < 0.0:
                             phase = 360.0 - phase
                         phase += (360. if positive_ph and phase < 0 else 0)
-                        speed = NOAA_SPEEDS[con] if con in NOAA_SPEEDS else numpy.nan
+                        speed = NOAA_SPEEDS[con][0] if con in NOAA_SPEEDS else numpy.nan
                         self.data[i].loc[con] = [amp, phase, speed]
 
         return self
