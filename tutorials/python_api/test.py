@@ -1,3 +1,4 @@
+import datetime
 import os
 
 from harmonica.tidal_constituents import Constituents
@@ -14,7 +15,7 @@ if __name__ == "__main__":
     constituents = Constituents('leprovost')
 
     # Get astronomical nodal factor data (not dependent on the tidal model)
-    nodal_factors = constituents.get_nodal_factor(cons, 15, 30, 8, 2018)
+    nodal_factors = constituents.get_nodal_factor(cons, datetime.datetime(2018, 8, 30, 15))
 
     f = open(os.path.join(os.getcwd(), "tidal_test.out"), "w")
     f.write("Nodal factor:\n")
@@ -40,10 +41,10 @@ if __name__ == "__main__":
     for pt in tpxo_comps.data:
         f.write(pt.sort_index().to_string() + "\n\n")
 
-    f.write("FES2014 components:\n")
-    f.flush()
-    fes2014_comps = constituents.get_components(all_points, cons, model='fes2014')
-    for pt in fes2014_comps.data:
-        f.write(pt.sort_index().to_string() + "\n\n")
+    # f.write("FES2014 components:\n")
+    # f.flush()
+    # fes2014_comps = constituents.get_components(all_points, cons, model='fes2014')
+    # for pt in fes2014_comps.data:
+    #     f.write(pt.sort_index().to_string() + "\n\n")
 
     f.close()

@@ -97,7 +97,7 @@ class TpxoDB(TidalDB):
                         # phase
                         ph + (360. if positive_ph and ph < 0 else 0),
                         # speed
-                        NOAA_SPEEDS[c]
+                        NOAA_SPEEDS[c][0]
                     ]
 
         return self
