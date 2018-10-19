@@ -31,7 +31,6 @@ class AdcircDB(TidalDB):
                 model, ", ".join(ResourceManager.ADCIRC_MODELS).strip()
             ))
         super().__init__(model)
-        self.resources.download_model(None)
 
     def get_components(self, locs, cons=None, positive_ph=False):
         """Get the amplitude, phase, and speed for the given constituents at the given points.
