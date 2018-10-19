@@ -1,4 +1,5 @@
-from .tidal_constituents import Constituents, NOAA_SPEEDS
+from .tidal_constituents import Constituents
+from .tidal_database import NOAA_SPEEDS
 from .resource import ResourceManager
 from pytides.astro import astro
 from pytides.tide import Tide as pyTide
@@ -24,14 +25,13 @@ class Tide:
         'MU2': 'mu2',
     }
 
-    def __init__(self):
+    def __init__(self, model=ResourceManager.DEFAULT_RESOURCE):
         # tide dataframe:
         #   date_times (year, month, day, hour, minute, second; UTC/GMT)
         self.data = pd.DataFrame(columns=['datetimes', 'water_level'])
-        self.constituents = Constituents()
+        self.constituents = Constituents(model=model)
 
-    def reconstruct_tide(self, loc, times, model=ResourceManager.DEFAULT_RESOURCE,
-            cons=[], positive_ph=False, offset=None):
+    def reconstruct_tide(self, loc, times, model=None, cons=[], positive_ph=False, offset=None):
         """Rescontruct a tide signal water levels at the given location and times
 
         Args:
@@ -46,8 +46,7 @@ class Tide:
         """
 
         # get constituent information
-        self.constituents.model = model
-        self.constituents.get_components([loc], cons, positive_ph)
+        self.constituents.get_components([loc], cons, positive_ph, model=model)
 
         ncons = len(self.constituents.data[0]) + (1 if offset is not None else 0)
         tide_model = np.zeros(ncons, dtype=pyTide.dtype)

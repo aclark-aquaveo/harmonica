@@ -1,84 +1,37 @@
 #! python3
 
-from enum import Enum
 import math
-import os
-import subprocess
-import random
-import string
-import shutil
 
+import numpy
 import pandas as pd
-import xarray as xr
 import xmsinterp_py
 
-from harmonica import config
+from .resource import ResourceManager
+from .tidal_database import convert_coords, get_complex_components, NOAA_SPEEDS, TidalDB
 
-from .tidal_database import convert_coords, NOAA_SPEEDS, TidalDB
 
-
-class TidalDBAdcircEnum(Enum):
-    """Enum for specifying the type of an ADCIRC database.
-
-    TIDE_NWAT: North West Atlantic database
-    TIDE_NEPAC: North East Pacific database
-    TIDE_NONE: Enum end - legacy from SMS port.
-
-    """
-    TIDE_NWAT = 0  # North West Atlantic Tidal Database
-    TIDE_NEPAC = 1  # North East Pacific Tidal Database
-    TIDE_NONE = 2  # Used if data not within any ADCIRC database domain
+DEFAULT_ADCIRC_RESOURCE = 'adcirc2015'
 
 
 class AdcircDB(TidalDB):
     """The class for extracting tidal data, specifically amplitude and phases, from an ADCIRC database.
 
-    Attributes:
-        exe_with_path (str): The path of the ADCIRC executable.
-        db_region (:obj:`harmonica.adcirc_database.TidalDBAdcircEnum`): The type of database.
-        grid_no_path (str): Filename of \*.grd file to use.
-        harm_no_path (str): Filename of \*.tdb file to use.
-        temp_folder (str): Temporary folder to hold files in while running executables.
-        tide_in (str): Temporary 'tides.in' filename with path.
-        tide_out (str): Temporary 'tides.out' filename with path.
-
     """
-    def __init__(self, resource_dir=None, db_region="adcircnwat"):
+    def __init__(self, model=DEFAULT_ADCIRC_RESOURCE):
         """Constructor for the ADCIRC tidal database extractor.
 
         Args:
-            resource_dir (:obj:`str`, optional): Directory of the ADCIRC resources. If not provided will become a
-                subfolder of "data" in the harmonica package location.
-            db_region (:obj:`str`, optional): ADCIRC tidal database region. Valid options are 'adcircnwat' and
-                'adcircnepac'
+            model (:obj:`str`, optional): Name of the ADCIRC tidal database version. Currently defaults to the only
+                supported release, 'adcirc2015'. Expand resource.adcirc_models for future versions.
 
         """
-        if db_region.lower() == "adcircnwat":
-            self.db_region = TidalDBAdcircEnum.TIDE_NWAT
-            self.grid_no_path = 'ec2012_v3d_chk.grd'
-            self.harm_no_path = 'ec2012_v3d_otis3_fort.53'
-        elif db_region.lower() == "adcircnepac":
-            self.db_region = TidalDBAdcircEnum.TIDE_NEPAC
-            self.grid_no_path = 'enpac2003.grd'
-            self.harm_no_path = 'enpac2003.tdb'
-        else:
-            raise ValueError('unrecognized ADCIRC database region.')
-        super().__init__(db_region.lower())
-        resource_dir = self.resources.download_model(resource_dir)
-        # self.db_with_path = os.path.join(resource_dir, self.resources.model_atts["consts"][0]["M2"])
-        self.grid_with_path = os.path.join(resource_dir, self.grid_no_path)
-        self.harm_with_path = os.path.join(resource_dir, self.harm_no_path)
-
-        # Build the temp working folder name
-        # src_list = list(string.ascii_uppercase + string.digits)
-        # rand_str = random.choice(src_list)
-        # self.temp_folder = os.path.join(resource_dir, '_'.join(rand_str))
-        # # check that the folder does not exist
-        # while os.path.isdir(self.temp_folder):
-            # rand_str = random.choice(src_list)
-            # self.temp_folder = self.temp_folder + rand_str
-        # self.tide_in = os.path.join(self.temp_folder, 'tides.in')
-        # self.tide_out = os.path.join(self.temp_folder, 'tides.out')
+        model = model.lower()
+        if model not in ResourceManager.ADCIRC_MODELS:
+            raise ValueError("\'{}\' is not a supported ADCIRC model. Must be one of: {}.".format(
+                model, ", ".join(ResourceManager.ADCIRC_MODELS).strip()
+            ))
+        super().__init__(model)
+        self.resources.download_model(None)
 
     def get_components(self, locs, cons=None, positive_ph=False):
         """Get the amplitude, phase, and speed for the given constituents at the given points.
@@ -122,9 +75,7 @@ class AdcircDB(TidalDB):
         tri_search.tris_to_search(mesh_pts, tri_list)
 
         points_and_weights = []
-        elem_dset = con_dsets.element[0]
-        max_tri = len(elem_dset)
-        for pt in locs:
+        for i, pt in enumerate(locs):
             pt_flip = (pt[1], pt[0])
             tri_idx = tri_search.tri_containing_pt(pt_flip)
             if tri_idx != -1:
@@ -136,47 +87,54 @@ class AdcircDB(TidalDB):
                 x3, y3, z3 = mesh_pts[pt_3]
                 x = pt_flip[0]
                 y = pt_flip[1]
-                s1 = abs((x2*y3-x3*y2)-(x*y3-x3*y)+(x*y2-x2*y))
-                s2 = abs((x*y3-x3*y)-(x1*y3-x3*y1)+(x1*y-x*y1))
-                s3 = abs((x2*y-x*y2)-(x1*y-x*y1)+(x1*y2-x2*y1))
-                ta = abs((x2*y3-x3*y2)-(x1*y3-x3*y1)+(x1*y2-x2*y1))
-                w1 = ((x-x3)*(y2-y3)+(x2-x3)*(y3-y))/ta
-                w2 = ((x-x1)*(y3-y1)-(y-y1)*(x3-x1))/ta
-                w3 = ((y-y1)*(x2-x1)-(x-x1)*(y2-y1))/ta
-                points_and_weights.append(((pt_1, pt_2, pt_3), (w1, w2, w3)))
+                # Compute barocentric area weights
+                ta = abs((x2 * y3 - x3 * y2) - (x1 * y3 - x3 * y1) + (x1 * y2 - x2 * y1))
+                w1 = ((x - x3) * (y2 - y3) + (x2 - x3) * (y3 - y)) / ta
+                w2 = ((x - x1) * (y3 - y1) - (y - y1) * (x3 - x1)) / ta
+                w3 = ((y - y1) * (x2 - x1) - (x - x1) * (y2 - y1)) / ta
+                points_and_weights.append((i, (pt_1, pt_2, pt_3), (w1, w2, w3)))
+            else:  # Outside domain, return NaN for all constituents
+                for con in cons:
+                    self.data[i].loc[con] = [numpy.nan, numpy.nan, numpy.nan]
 
         for con in cons:
             con_amp_name = con + "_amplitude"
             con_pha_name = con + "_phase"
             con_amp = con_dsets[con_amp_name][0]
             con_pha = con_dsets[con_pha_name][0]
-            for i, (pts, weights) in enumerate(points_and_weights):
-                amp1 = float(con_amp[pts[0]])
-                amp2 = float(con_amp[pts[1]])
-                amp3 = float(con_amp[pts[2]])
-                pha1 = math.radians(float(con_pha[pts[0]]))
-                pha2 = math.radians(float(con_pha[pts[1]]))
-                pha3 = math.radians(float(con_pha[pts[2]]))
+            for i, pts, weights in points_and_weights:
+                amps = [float(con_amp[pts[0]]), float(con_amp[pts[1]]), float(con_amp[pts[2]])]
+                phases = [
+                    math.radians(float(con_pha[pts[0]])),
+                    math.radians(float(con_pha[pts[1]])),
+                    math.radians(float(con_pha[pts[2]])),
+                ]
 
-                self.data[i].loc[con] = [0.0, 0.0, 0.0]
-                C1R=amp1*math.cos(pha1)
-                C1I=amp1*math.sin(pha1)
-                C2R=amp2*math.cos(pha2)
-                C2I=amp2*math.sin(pha2)
-                C3R=amp3*math.cos(pha3)
-                C3I=amp3*math.sin(pha3)
-                CTR=C1R*weights[0]+C2R*weights[1]+C3R*weights[2]
-                CTI=C1I*weights[0]+C2I*weights[1]+C3I*weights[2]
+                # Get the real and imaginary components from the amplitude and phases in the file. It
+                # would be better if these values were stored in the file like TPXO.
+                complex_components = get_complex_components(amps, phases)
 
-                new_amp = math.sqrt(CTR*CTR+CTI*CTI)
-                self.data[i].loc[con]['amplitude'] = new_amp
+                # Perform area weighted interpolation
+                ctr = (
+                    complex_components[0][0] * weights[0] +
+                    complex_components[1][0] * weights[1] +
+                    complex_components[2][0] * weights[2]
+                )
+                cti = (
+                    complex_components[0][1] * weights[0] +
+                    complex_components[1][1] * weights[1] +
+                    complex_components[2][1] * weights[2]
+                )
+                new_amp = math.sqrt(ctr * ctr + cti * cti)
+
+                # Compute interpolated phase
                 if new_amp == 0.0:
-                   new_phase = 0.0
+                    new_phase = 0.0
                 else:
-                   new_phase = math.degrees(math.acos(CTR / new_amp))
-                   if CTI < 0.0:
-                       new_phase = 360.0 - new_phase
-                self.data[i].loc[con]['phase'] = new_phase
-                self.data[i].loc[con]['speed'] = NOAA_SPEEDS[con.upper()]
+                    new_phase = math.degrees(math.acos(ctr / new_amp))
+                    if cti < 0.0:
+                        new_phase = 360.0 - new_phase
+                speed = NOAA_SPEEDS[con] if con in NOAA_SPEEDS else numpy.nan
+                self.data[i].loc[con] = [new_amp, new_phase, speed]
 
         return self

@@ -10,21 +10,31 @@ import os
 
 import pandas as pd
 
-from .tidal_database import convert_coords, NOAA_SPEEDS, TidalDB
+from .resource import ResourceManager
+from .tidal_database import convert_coords, get_complex_components, NOAA_SPEEDS, TidalDB
+
+
+DEFAULT_LEPROVOST_RESOURCE = 'leprovost'
 
 
 class LeProvostDB(TidalDB):
     """Extractor class for the LeProvost tidal database.
 
     """
-    def __init__(self, model="leprovost"):
+    def __init__(self, model=DEFAULT_LEPROVOST_RESOURCE):
         """Constructor for the LeProvost tidal database extractor.
 
+
+        Args:
+            model (:obj:`str`, optional): Name of the LeProvost tidal database version. Defaults to the freely
+                distributed but outdated 'leprovost' version. See resource.py for additional supported models.
+
         """
-        # Make sure this is a valid LeProvost version ('leprovost' or 'fes2014')
-        if model.lower() not in ['leprovost', 'fes2014']:
-            raise ValueError("{} is not a supported LeProvost model. Must be 'leprovost' or 'fes2014'.")
-        # self.debugger = open("debug.txt", "w")
+        model = model.lower()  # Be case-insensitive
+        if model not in ResourceManager.LEPROVOST_MODELS:  # Check for valid LeProvost model
+            raise ValueError("\'{}\' is not a supported LeProvost model. Must be one of: {}.".format(
+                model, ", ".join(ResourceManager.LEPROVOST_MODELS).strip()
+            ))
         super().__init__(model)
 
     def get_components(self, locs, cons=None, positive_ph=False):
@@ -57,7 +67,7 @@ class LeProvostDB(TidalDB):
             return self  # ERROR: Not in latitude/longitude
 
         self.data = [pd.DataFrame(columns=['amplitude', 'phase', 'speed']) for _ in range(len(locs))]
-        dataset_atts = self.resources.model_atts['dataset_atts']
+        dataset_atts = self.resources.model_atts.dataset_attributes()
 
         n_lat = dataset_atts['num_lats']
         n_lon = dataset_atts['num_lons']
@@ -67,9 +77,9 @@ class LeProvostDB(TidalDB):
         d_lon = 360.0 / n_lon
 
         for file_idx, d in enumerate(self.resources.get_datasets(cons)):
-            if self.model == 'leprovost':
+            if self.model == 'leprovost':  # All constituents in one file with constituent name dataset.
                 nc_names = [x.strip().upper() for x in d.spectrum.values[0]]
-            else:
+            else:  # FES2014 has seperate files for each constituent with no constituent name dataset.
                 # TODO: Probably need to find a better way to get the constituent name. _file_obj is undocumented, so
                 # TODO:     there is no guarantee this functionality will be maintained.
                 nc_names = [os.path.splitext(os.path.basename(dset.ds.filepath()))[0].upper() for
@@ -115,57 +125,58 @@ class LeProvostDB(TidalDB):
                             skip = True
                         else:  # Make sure we have at least one neighbor with an active phase value.
                             # Read potential contributing phases from the file.
-                            xlo_yhi_phase = phase_dset[con_idx][yhi][xlo]
-                            xlo_ylo_phase = phase_dset[con_idx][ylo][xlo]
-                            xhi_yhi_phase = phase_dset[con_idx][yhi][xhi]
-                            xhi_ylo_phase = phase_dset[con_idx][ylo][xhi]
+                            xlo_yhi_phase = math.radians(phase_dset[con_idx][yhi][xlo])
+                            xlo_ylo_phase = math.radians(phase_dset[con_idx][ylo][xlo])
+                            xhi_yhi_phase = math.radians(phase_dset[con_idx][yhi][xhi])
+                            xhi_ylo_phase = math.radians(phase_dset[con_idx][ylo][xhi])
                             if (numpy.isnan(xlo_yhi_phase) and numpy.isnan(xhi_yhi_phase) and
                                     numpy.isnan(xlo_ylo_phase) and numpy.isnan(xhi_ylo_phase)):
                                 skip = True
 
                     if skip:
-                        self.data[i].loc[con] = [0.0, 0.0, 0.0]
+                        self.data[i].loc[con] = [numpy.nan, numpy.nan, numpy.nan]
                     else:
                         xratio = (x_lon - xlonlo) / d_lon
                         yratio = (y_lat - ylatlo) / d_lat
-                        xcos1 = xlo_yhi_amp * math.cos(math.radians(xlo_yhi_phase))
-                        xcos2 = xhi_yhi_amp * math.cos(math.radians(xhi_yhi_phase))
-                        xcos3 = xlo_ylo_amp * math.cos(math.radians(xlo_ylo_phase))
-                        xcos4 = xhi_ylo_amp * math.cos(math.radians(xhi_ylo_phase))
-                        xsin1 = xlo_yhi_amp * math.sin(math.radians(xlo_yhi_phase))
-                        xsin2 = xhi_yhi_amp * math.sin(math.radians(xhi_yhi_phase))
-                        xsin3 = xlo_ylo_amp * math.sin(math.radians(xlo_ylo_phase))
-                        xsin4 = xhi_ylo_amp * math.sin(math.radians(xhi_ylo_phase))
 
+                        # Get the real and imaginary components from the amplitude and phases in the file. It
+                        # would be better if these values were stored in the file like TPXO.
+                        complex_comps = get_complex_components(
+                            amps=[xlo_yhi_amp, xhi_yhi_amp, xlo_ylo_amp, xhi_ylo_amp],
+                            phases=[xlo_yhi_phase, xhi_yhi_phase, xlo_ylo_phase, xhi_ylo_phase],
+                        )
+
+                        # Perform bi-linear interpolation from the four cell corners to the target point.
                         xcos = 0.0
                         xsin = 0.0
                         denom = 0.0
                         if not numpy.isnan(xlo_yhi_amp) and not numpy.isnan(xlo_yhi_phase):
-                            xcos = xcos + xcos1 * (1.0 - xratio) * yratio
-                            xsin = xsin + xsin1 * (1.0 - xratio) * yratio
+                            xcos = xcos + complex_comps[0][0] * (1.0 - xratio) * yratio
+                            xsin = xsin + complex_comps[0][1] * (1.0 - xratio) * yratio
                             denom = denom + (1.0 - xratio) * yratio
                         if not numpy.isnan(xhi_yhi_amp) and not numpy.isnan(xhi_yhi_phase):
-                            xcos = xcos + xcos2 * xratio * yratio
-                            xsin = xsin + xsin2 * xratio * yratio
+                            xcos = xcos + complex_comps[1][0] * xratio * yratio
+                            xsin = xsin + complex_comps[1][1] * xratio * yratio
                             denom = denom + xratio * yratio
                         if not numpy.isnan(xlo_ylo_amp) and not numpy.isnan(xlo_ylo_phase):
-                            xcos = xcos + xcos3 * (1.0 - xratio) * (1 - yratio)
-                            xsin = xsin + xsin3 * (1.0 - xratio) * (1 - yratio)
+                            xcos = xcos + complex_comps[2][0] * (1.0 - xratio) * (1 - yratio)
+                            xsin = xsin + complex_comps[2][1] * (1.0 - xratio) * (1 - yratio)
                             denom = denom + (1.0 - xratio) * (1.0 - yratio)
                         if not numpy.isnan(xhi_ylo_amp) and not numpy.isnan(xhi_ylo_phase):
-                            xcos = xcos + xcos4 * (1.0 - yratio) * xratio
-                            xsin = xsin + xsin4 * (1.0 - yratio) * xratio
+                            xcos = xcos + complex_comps[3][0] * (1.0 - yratio) * xratio
+                            xsin = xsin + complex_comps[3][1] * (1.0 - yratio) * xratio
                             denom = denom + (1.0 - yratio) * xratio
-
                         xcos = xcos / denom
                         xsin = xsin / denom
-
                         amp = math.sqrt(xcos * xcos + xsin * xsin)
+
+                        # Compute interpolated phase
                         phase = math.degrees(math.acos(xcos / amp))
                         amp /= 100.0
                         if xsin < 0.0:
                             phase = 360.0 - phase
                         phase += (360. if positive_ph and phase < 0 else 0)
-                        self.data[i].loc[con] = [amp, phase, NOAA_SPEEDS[con]]
+                        speed = NOAA_SPEEDS[con] if con in NOAA_SPEEDS else numpy.nan
+                        self.data[i].loc[con] = [amp, phase, speed]
 
         return self

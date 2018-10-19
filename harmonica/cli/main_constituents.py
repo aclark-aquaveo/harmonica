@@ -37,9 +37,10 @@ def parse_args(args):
 
 
 def execute(args):
-    cons = Constituents().get_components([args.lat, args.lon], model=args.model, cons=args.cons,
-        positive_ph=args.positive_phase)
-    out = cons.data.to_csv(args.output, sep='\t', header=True, index=True, index_label='constituent')
+    cons = Constituents(model=args.model).get_components(
+        [(args.lat, args.lon)],  cons=args.cons, positive_ph=args.positive_phase
+    )
+    out = cons.data[0].to_csv(args.output, sep='\t', header=True, index=True, index_label='constituent')
     if args.output is None:
         print(out)
     print("\nComplete.\n")
