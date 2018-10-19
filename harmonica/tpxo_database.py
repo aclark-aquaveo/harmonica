@@ -1,25 +1,29 @@
-from .resource import ResourceManager
-from .tidal_database import NOAA_SPEEDS, TidalDB
-
 from bisect import bisect
 import numpy as np
 import pandas as pd
+
+from .resource import ResourceManager
+from .tidal_database import NOAA_SPEEDS, TidalDB
+
+
+DEFAULT_TPXO_RESOURCE = 'tpxo9'
 
 
 class TpxoDB(TidalDB):
     """Harmonica tidal constituents."""
 
-    def __init__(self, model=ResourceManager.DEFAULT_RESOURCE):
+    def __init__(self, model=DEFAULT_TPXO_RESOURCE):
         """Constructor for the TPXO tidal extractor.
 
         Args:
-            model (:obj:`str`, optional): The name of the TPXO model. One of: 'tpxo9', 'tpxo8', 'tpxo7'.
-                ResourceManager.DEFAULT_RESOURCE if not specified.
+            model (:obj:`str`, optional): The name of the TPXO model. See resource.py for supported models.
+
         """
-        # constituent information dataframe:
-        #   amplitude (meters)
-        #   phase (degrees)
-        #   speed (degrees/hour, UTC/GMT)
+        model = model.lower()  # Be case-insensitive
+        if model not in ResourceManager.TPXO_MODELS:  # Check for valid TPXO model
+            raise ValueError("\'{}\' is not a supported TPXO model. Must be one of: {}.".format(
+                model, ", ".join(ResourceManager.TPXO_MODELS).strip()
+            ))
         super().__init__(model)
 
     def get_components(self, locs, cons=None, positive_ph=False):

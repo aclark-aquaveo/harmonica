@@ -1,15 +1,27 @@
 from .adcirc_database import AdcircDB
 from .leprovost_database import LeProvostDB
+from .resource import ResourceManager
 from .tpxo_database import TpxoDB
 
 
 class Constituents:
-    tpxo_models = ['tpxo7', 'tpxo8', 'tpxo9']
-    leprovost_models = ['fes2014', 'leprovost']
+    """Class for extracting tidal constituent data
 
-    def __init__(self, model):
+    Attributes:
+        _current_model (:obj:`tidal_database.TidalDB`): The tidal model currently being used for extraction
+
+    """
+    def __init__(self, model=ResourceManager.DEFAULT_RESOURCE):
+        """Constructor tidal constituent extractor interface.
+
+        Use this class as opposed to the lower level implementations
+
+        Args:
+            model (:obj:`str`, optional): Name of the tidal model. See resource.py for supported models.
+
+        """
         self._current_model = None
-        self.change_model(model.lower())
+        self.change_model(model)
 
     @property
     def data(self):
@@ -24,25 +36,25 @@ class Constituents:
             self._current_model.data = value
 
     def change_model(self, new_model):
+        new_model = new_model.lower()
         if self._current_model and self._current_model.model == new_model:
-            return  # Already have the correct impl for this model, nothing to do.
+            return  # Already have the correct impl and resources for this model, nothing to do.
 
-        if new_model in self.tpxo_models:  # Switch to a TPXO model
-            # If we already have a TPXO impl, change its version if necessary.
-            if self._current_model and self._current_model.model in self.tpxo_models:
-                self._current_model.change_model(new_model)
-            else:  # Construct a new TPXO impl.
-                self._current_model = TpxoDB(new_model)
-        elif new_model in self.leprovost_models:
-            # If we already have a LeProvost impl, change its version if necessary.
-            if self._current_model and self._current_model.model in self.leprovost_models:
-                self._current_model.change_model(new_model)
-            else:  # Construct a new LeProvost impl.
-                self._current_model = LeProvostDB(new_model)
-        elif new_model == 'adcirc2015':
+        if new_model in ResourceManager.TPXO_MODELS:  # Switch to a TPXO model
+            self._current_model = TpxoDB(new_model)
+        elif new_model in ResourceManager.LEPROVOST_MODELS:
+            self._current_model = LeProvostDB(new_model)
+        elif new_model in ResourceManager.ADCIRC_MODELS:
             self._current_model = AdcircDB()
         else:
-            raise ValueError("Model not supported - {}".format(new_model))
+            supported_models = (
+                ", ".join(ResourceManager.TPXO_MODELS) + ", " +
+                ", ".join(ResourceManager.LEPROVOST_MODELS) + ", " +
+                ", ".join(ResourceManager.ADCIRC_MODELS)
+            )
+            raise ValueError("Model not supported: \'{}\'. Must be one of: {}.".format(
+                new_model, supported_models.strip()
+            ))
 
     def get_components(self, locs, cons=None, positive_ph=False, model=None):
         """Abstract method to get amplitude, phase, and speed of specified constituents at specified point locations.

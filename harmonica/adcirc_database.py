@@ -6,18 +6,31 @@ import numpy
 import pandas as pd
 import xmsinterp_py
 
+from .resource import ResourceManager
 from .tidal_database import convert_coords, get_complex_components, NOAA_SPEEDS, TidalDB
+
+
+DEFAULT_ADCIRC_RESOURCE = 'adcirc2015'
 
 
 class AdcircDB(TidalDB):
     """The class for extracting tidal data, specifically amplitude and phases, from an ADCIRC database.
 
     """
-    def __init__(self):
+    def __init__(self, model=DEFAULT_ADCIRC_RESOURCE):
         """Constructor for the ADCIRC tidal database extractor.
 
+        Args:
+            model (:obj:`str`, optional): Name of the ADCIRC tidal database version. Currently defaults to the only
+                supported release, 'adcirc2015'. Expand resource.adcirc_models for future versions.
+
         """
-        super().__init__('adcirc2015')
+        model = model.lower()
+        if model not in ResourceManager.ADCIRC_MODELS:
+            raise ValueError("\'{}\' is not a supported ADCIRC model. Must be one of: {}.".format(
+                model, ", ".join(ResourceManager.ADCIRC_MODELS).strip()
+            ))
+        super().__init__(model)
         self.resources.download_model(None)
 
     def get_components(self, locs, cons=None, positive_ph=False):
@@ -74,11 +87,11 @@ class AdcircDB(TidalDB):
                 x3, y3, z3 = mesh_pts[pt_3]
                 x = pt_flip[0]
                 y = pt_flip[1]
-                # Compute barocentric weights
-                ta = abs((x2*y3-x3*y2)-(x1*y3-x3*y1)+(x1*y2-x2*y1))
-                w1 = ((x-x3)*(y2-y3)+(x2-x3)*(y3-y))/ta
-                w2 = ((x-x1)*(y3-y1)-(y-y1)*(x3-x1))/ta
-                w3 = ((y-y1)*(x2-x1)-(x-x1)*(y2-y1))/ta
+                # Compute barocentric area weights
+                ta = abs((x2 * y3 - x3 * y2) - (x1 * y3 - x3 * y1) + (x1 * y2 - x2 * y1))
+                w1 = ((x - x3) * (y2 - y3) + (x2 - x3) * (y3 - y)) / ta
+                w2 = ((x - x1) * (y3 - y1) - (y - y1) * (x3 - x1)) / ta
+                w3 = ((y - y1) * (x2 - x1) - (x - x1) * (y2 - y1)) / ta
                 points_and_weights.append((i, (pt_1, pt_2, pt_3), (w1, w2, w3)))
             else:  # Outside domain, return NaN for all constituents
                 for con in cons:
@@ -100,6 +113,8 @@ class AdcircDB(TidalDB):
                 # Get the real and imaginary components from the amplitude and phases in the file. It
                 # would be better if these values were stored in the file like TPXO.
                 complex_components = get_complex_components(amps, phases)
+
+                # Perform area weighted interpolation
                 ctr = (
                     complex_components[0][0] * weights[0] +
                     complex_components[1][0] * weights[1] +
@@ -110,8 +125,9 @@ class AdcircDB(TidalDB):
                     complex_components[1][1] * weights[1] +
                     complex_components[2][1] * weights[2]
                 )
-
                 new_amp = math.sqrt(ctr * ctr + cti * cti)
+
+                # Compute interpolated phase
                 if new_amp == 0.0:
                     new_phase = 0.0
                 else:

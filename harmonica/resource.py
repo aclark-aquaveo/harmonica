@@ -1,3 +1,4 @@
+from abc import ABCMeta, abstractmethod
 import os
 import shutil
 import urllib.request
@@ -8,213 +9,351 @@ import xarray as xr
 from harmonica import config
 
 
+class Resources(object):
+    """Abstract base class for model resources
+
+    """
+    def __init__(self):
+        """Base constructor
+
+        """
+        pass
+
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def resource_attributes(self):
+        """Get the resource attributes of a model (e.g. web url, compression type)
+
+        Returns:
+            dict: Dictionary of model resource attributes
+
+        """
+        return {}
+
+    @abstractmethod
+    def dataset_attributes(self):
+        """Get the dataset attributes of a model (e.g. unit multiplier, grid dimensions)
+
+        Returns:
+            dict: Dictionary of model dataset attributes
+
+        """
+        return {}
+
+    @abstractmethod
+    def available_constituents(self):
+        """Get all the available constituents of a model
+
+        Returns:
+            list: List of all the available constituents
+
+        """
+        return []
+
+    @abstractmethod
+    def constituent_groups(self):
+        """Get all the available constituents of a model grouped by compatible file types
+
+        Returns:
+            list(list): 2-D list of available constituents, where the first dimension groups compatible files
+
+        """
+        return []
+
+    @abstractmethod
+    def constituent_resource(self, con):
+        """Get the resource name of a constituent
+
+        Returns:
+            str: Name of the constituent's resource
+
+        """
+        return None
+
+
+class Tpxo7Resources(Resources):
+    """TPXO7 resources
+
+    """
+    TPXO7_CONS = {'K1', 'K2', 'M2', 'M4', 'MF', 'MM', 'MN4', 'MS4', 'N2', 'O1', 'P1', 'Q1', 'S2'}
+    DEFAULT_RESOURCE_FILE = 'DATA/h_tpxo7.2.nc'
+
+    def __init__(self):
+        super().__init__()
+
+    def resource_attributes(self):
+        return {
+            'url': 'ftp://ftp.oce.orst.edu/dist/tides/Global/tpxo7.2_netcdf.tar.Z',
+            'archive': 'gz',  # gzip compression
+        }
+
+    def dataset_attributes(self):
+        return {
+            'units_multiplier': 1.0,  # meter
+        }
+
+    def available_constituents(self):
+        return self.TPXO7_CONS
+
+    def constituent_groups(self):
+        return [self.available_constituents()]
+
+    def constituent_resource(self, con):
+        if con.upper() in self.TPXO7_CONS:
+            return self.DEFAULT_RESOURCE_FILE
+        else:
+            return None
+
+
+class Tpxo8Resources(Resources):
+    """TPXO8 resources
+
+    """
+    TPXO8_CONS = [
+        {  # 1/30 degree
+            'K1': 'hf.k1_tpxo8_atlas_30c_v1.nc',
+            'K2': 'hf.k2_tpxo8_atlas_30c_v1.nc',
+            'M2': 'hf.m2_tpxo8_atlas_30c_v1.nc',
+            'M4': 'hf.m4_tpxo8_atlas_30c_v1.nc',
+            'N2': 'hf.n2_tpxo8_atlas_30c_v1.nc',
+            'O1': 'hf.o1_tpxo8_atlas_30c_v1.nc',
+            'P1': 'hf.p1_tpxo8_atlas_30c_v1.nc',
+            'Q1': 'hf.q1_tpxo8_atlas_30c_v1.nc',
+            'S2': 'hf.s2_tpxo8_atlas_30c_v1.nc',
+        },
+        {  # 1/6 degree
+            'MF': 'hf.mf_tpxo8_atlas_6.nc',
+            'MM': 'hf.mm_tpxo8_atlas_6.nc',
+            'MN4': 'hf.mn4_tpxo8_atlas_6.nc',
+            'MS4': 'hf.ms4_tpxo8_atlas_6.nc',
+        },
+    ]
+
+    def __init__(self):
+        super().__init__()
+
+    def resource_attributes(self):
+        return {
+            'url': "ftp://ftp.oce.orst.edu/dist/tides/TPXO8_atlas_30_v1_nc/",
+            'archive': None,
+        }
+
+    def dataset_attributes(self):
+        return {
+            'units_multiplier': 0.001,  # mm to meter
+        }
+
+    def available_constituents(self):
+        # get keys from const groups as list of lists and flatten
+        return [c for sl in [grp.keys() for grp in self.TPXO8_CONS] for c in sl]
+
+    def constituent_groups(self):
+        return [self.TPXO8_CONS[0], self.TPXO8_CONS[1]]
+
+    def constituent_resource(self, con):
+        con = con.upper()
+        for group in self.TPXO8_CONS:
+            if con in group:
+                return group[con]
+        return None
+
+
+class Tpxo9Resources(Resources):
+    """TPXO9 resources
+
+    """
+    TPXO9_CONS = {'2N2', 'K1', 'K2', 'M2', 'M4', 'MF', 'MM', 'MN4', 'MS4', 'N2', 'O1', 'P1', 'Q1', 'S1', 'S2'}
+    DEFAULT_RESOURCE_FILE = 'tpxo9_netcdf/h_tpxo9.v1.nc'
+
+    def __init__(self):
+        super().__init__()
+
+    def resource_attributes(self):
+        return {
+            'url': "ftp://ftp.oce.orst.edu/dist/tides/Global/tpxo9_netcdf.tar.gz",
+            'archive': 'gz',
+        }
+
+    def dataset_attributes(self):
+        return {
+            'units_multiplier': 1.0,  # meter
+        }
+
+    def available_constituents(self):
+        return self.TPXO9_CONS
+
+    def constituent_groups(self):
+        return [self.available_constituents()]
+
+    def constituent_resource(self, con):
+        if con.upper() in self.TPXO9_CONS:
+            return self.DEFAULT_RESOURCE_FILE
+        else:
+            return None
+
+
+class LeProvostResources(Resources):
+    """LeProvost resources
+
+    """
+    LEPROVOST_CONS = {'K1', 'K2', 'M2', 'N2', 'O1', 'P1', 'Q1', 'S2', 'NU2', 'MU2', '2N2', 'T2', 'L2'}
+    DEFAULT_RESOURCE_FILE = 'leprovost_tidal_db.nc'
+
+    def __init__(self):
+        super().__init__()
+
+    def resource_attributes(self):
+        return {
+            'url': 'http://sms.aquaveo.com/leprovost_tidal_db.zip',
+            'archive': 'zip',  # zip compression
+        }
+
+    def dataset_attributes(self):
+        return {
+            'units_multiplier': 1.0,  # meter
+            'num_lats': 361,
+            'num_lons': 720,
+            'min_lon': -180.0,
+        }
+
+    def available_constituents(self):
+        return self.LEPROVOST_CONS
+
+    def constituent_groups(self):
+        return [self.available_constituents()]
+
+    def constituent_resource(self, con):
+        if con.upper() in self.LEPROVOST_CONS:
+            return self.DEFAULT_RESOURCE_FILE
+        else:
+            return None
+
+
+class FES2014Resources(Resources):
+    """FES2014 resources
+
+    """
+    FES2014_CONS = {
+        '2N2': '2n2.nc',
+        'EPS2': 'eps2.nc',
+        'J1': 'j1.nc',
+        'K1': 'k1.nc',
+        'K2': 'k2.nc',
+        'L2': 'l2.nc',
+        'LA2': 'la2.nc',
+        'M2': 'm2.nc',
+        'M3': 'm3.nc',
+        'M4': 'm4.nc',
+        'M6': 'm6.nc',
+        'M8': 'm8.nc',
+        'MF': 'mf.nc',
+        'MKS2': 'mks2.nc',
+        'MM': 'mm.nc',
+        'MN4': 'mn4.nc',
+        'MS4': 'ms4.nc',
+        'MSF': 'msf.nc',
+        'MSQM': 'msqm.nc',
+        'MTM': 'mtm.nc',
+        'MU2': 'mu2.nc',
+        'N2': 'n2.nc',
+        'N4': 'n4.nc',
+        'NU2': 'nu2.nc',
+        'O1': 'o1.nc',
+        'P1': 'p1.nc',
+        'Q1': 'q1.nc',
+        'R2': 'r2.nc',
+        'S1': 's1.nc',
+        'S2': 's2.nc',
+        'S4': 's4.nc',
+        'SA': 'sa.nc',
+        'SSA': 'ssa.nc',
+        'T2': 't2.nc',
+    }
+
+    def __init__(self):
+        super().__init__()
+
+    def resource_attributes(self):
+        return {
+            'url': None,  # Resources must already exist. Licensing restrictions prevent hosting files.
+            'archive': None,
+        }
+
+    def dataset_attributes(self):
+        return {
+            'units_multiplier': 1.0,  # meter
+            'num_lats': 2881,
+            'num_lons': 5760,
+            'min_lon': 0.0,
+        }
+
+    def available_constituents(self):
+        return self.FES2014_CONS.keys()
+
+    def constituent_groups(self):
+        return [self.available_constituents()]
+
+    def constituent_resource(self, con):
+        con = con.upper()
+        if con in self.FES2014_CONS:
+            return self.FES2014_CONS[con]
+        else:
+            return None
+
+
+class Adcirc2015Resources(Resources):
+    """ADCIRC (v2015) resources
+
+    """
+    ADCIRC_CONS = {
+        'M2', 'S2', 'N2', 'K1', 'M4', 'O1', 'M6', 'Q1', 'K2', 'L2', '2N2', 'R2', 'T2', 'LAMBDA2', 'MU2',
+        'NU2', 'J1', 'M1', 'OO1', 'P1', '2Q1', 'RHO1', 'M8', 'S4', 'S6', 'M3', 'S1', 'MK3', '2MK3', 'MN4',
+        'MS4', '2SM2', 'MF', 'MSF', 'MM', 'SA', 'SSA'
+    }
+    DEFAULT_RESOURCE_FILE = 'all_adcirc.nc'
+
+    def __init__(self):
+        super().__init__()
+
+    def resource_attributes(self):
+        return {
+            'url': 'http://sms.aquaveo.com/',
+            'archive': None,  # Uncompressed NetCDF file
+        }
+
+    def dataset_attributes(self):
+        return {
+            'units_multiplier': 1.0,  # meter
+        }
+
+    def available_constituents(self):
+        return self.ADCIRC_CONS
+
+    def constituent_groups(self):
+        return [self.available_constituents()]
+
+    def constituent_resource(self, con):
+        if con.upper() in self.ADCIRC_CONS:
+            return self.DEFAULT_RESOURCE_FILE
+        else:
+            return None
+
+
 class ResourceManager(object):
     """Harmonica resource manager to retrieve and access tide models"""
 
-    # Dictionary of model information
     RESOURCES = {
-        'tpxo9': {
-            'resource_atts': {
-                'url': "ftp://ftp.oce.orst.edu/dist/tides/Global/tpxo9_netcdf.tar.gz",
-                'archive': 'gz',
-            },
-            'dataset_atts': {
-                'units_multiplier': 1.,  # meters
-            },
-            'consts': [{  # grouped by dimensionally compatible files
-                '2N2': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'K1': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'K2': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'M2': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'M4': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'MF': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'MM': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'MN4': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'MS4': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'N2': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'O1': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'P1': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'Q1': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'S1': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-                'S2': 'tpxo9_netcdf/h_tpxo9.v1.nc',
-            }, ],
-        },
-        'tpxo8': {
-            'resource_atts': {
-                'url': "ftp://ftp.oce.orst.edu/dist/tides/TPXO8_atlas_30_v1_nc/",
-                'archive': None,
-            },
-            'dataset_atts': {
-                'units_multiplier': 0.001,  # mm to meter
-            },
-            'consts': [  # grouped by dimensionally compatible files
-                {  # 1/30 degree
-                    'K1': 'hf.k1_tpxo8_atlas_30c_v1.nc',
-                    'K2': 'hf.k2_tpxo8_atlas_30c_v1.nc',
-                    'M2': 'hf.m2_tpxo8_atlas_30c_v1.nc',
-                    'M4': 'hf.m4_tpxo8_atlas_30c_v1.nc',
-                    'N2': 'hf.n2_tpxo8_atlas_30c_v1.nc',
-                    'O1': 'hf.o1_tpxo8_atlas_30c_v1.nc',
-                    'P1': 'hf.p1_tpxo8_atlas_30c_v1.nc',
-                    'Q1': 'hf.q1_tpxo8_atlas_30c_v1.nc',
-                    'S2': 'hf.s2_tpxo8_atlas_30c_v1.nc',
-                },
-                {  # 1/6 degree
-                    'MF': 'hf.mf_tpxo8_atlas_6.nc',
-                    'MM': 'hf.mm_tpxo8_atlas_6.nc',
-                    'MN4': 'hf.mn4_tpxo8_atlas_6.nc',
-                    'MS4': 'hf.ms4_tpxo8_atlas_6.nc',
-                },
-            ],
-        },
-        'tpxo7': {
-            'resource_atts': {
-                'url': "ftp://ftp.oce.orst.edu/dist/tides/Global/tpxo7.2_netcdf.tar.Z",
-                'archive': 'gz',  # gzip compression
-            },
-            'dataset_atts': {
-                'units_multiplier': 1.,  # meter
-            },
-            'consts': [{  # grouped by dimensionally compatible files
-                'K1': 'DATA/h_tpxo7.2.nc',
-                'K2': 'DATA/h_tpxo7.2.nc',
-                'M2': 'DATA/h_tpxo7.2.nc',
-                'M4': 'DATA/h_tpxo7.2.nc',
-                'MF': 'DATA/h_tpxo7.2.nc',
-                'MM': 'DATA/h_tpxo7.2.nc',
-                'MN4': 'DATA/h_tpxo7.2.nc',
-                'MS4': 'DATA/h_tpxo7.2.nc',
-                'N2': 'DATA/h_tpxo7.2.nc',
-                'O1': 'DATA/h_tpxo7.2.nc',
-                'P1': 'DATA/h_tpxo7.2.nc',
-                'Q1': 'DATA/h_tpxo7.2.nc',
-                'S2': 'DATA/h_tpxo7.2.nc',
-            }, ],
-        },
-        'leprovost': {
-            'resource_atts': {
-                'url': 'http://sms.aquaveo.com/leprovost_tidal_db.zip',
-                'archive': 'zip',  # zip compression
-            },
-            'dataset_atts': {
-                'units_multiplier': 1.,  # meter
-                'num_lats': 361,
-                'num_lons': 720,
-                'min_lon': -180.0
-            },
-            'consts': [{  # grouped by dimensionally compatible files
-                'K1': 'leprovost_tidal_db.nc',
-                'K2': 'leprovost_tidal_db.nc',
-                'M2': 'leprovost_tidal_db.nc',
-                'N2': 'leprovost_tidal_db.nc',
-                'O1': 'leprovost_tidal_db.nc',
-                'P1': 'leprovost_tidal_db.nc',
-                'Q1': 'leprovost_tidal_db.nc',
-                'S2': 'leprovost_tidal_db.nc',
-                'NU2': 'leprovost_tidal_db.nc',
-                'MU2': 'leprovost_tidal_db.nc',
-                '2N2': 'leprovost_tidal_db.nc',
-                'T2': 'leprovost_tidal_db.nc',
-                'L2': 'leprovost_tidal_db.nc',
-            }, ],
-        },
-        'fes2014': {  # Resources must already exist. Licensing restrictions prevent
-            'resource_atts': {
-                'url': None,
-                'archive': None,
-            },
-            'dataset_atts': {
-                'units_multiplier': 1.,  # meter
-                'num_lats': 2881,
-                'num_lons': 5760,
-                'min_lon': 0.0
-            },
-            'consts': [{  # grouped by dimensionally compatible files
-                '2N2': '2n2.nc',
-                'EPS2': 'eps2.nc',
-                'J1': 'j1.nc',
-                'K1': 'k1.nc',
-                'K2': 'k2.nc',
-                'L2': 'l2.nc',
-                'LA2': 'la2.nc',
-                'M2': 'm2.nc',
-                'M3': 'm3.nc',
-                'M4': 'm4.nc',
-                'M6': 'm6.nc',
-                'M8': 'm8.nc',
-                'MF': 'mf.nc',
-                'MKS2': 'mks2.nc',
-                'MM': 'mm.nc',
-                'MN4': 'mn4.nc',
-                'MS4': 'ms4.nc',
-                'MSF': 'msf.nc',
-                'MSQM': 'msqm.nc',
-                'MTM': 'mtm.nc',
-                'MU2': 'mu2.nc',
-                'N2': 'n2.nc',
-                'N4': 'n4.nc',
-                'NU2': 'nu2.nc',
-                'O1': 'o1.nc',
-                'P1': 'p1.nc',
-                'Q1': 'q1.nc',
-                'R2': 'r2.nc',
-                'S1': 's1.nc',
-                'S2': 's2.nc',
-                'S4': 's4.nc',
-                'SA': 'sa.nc',
-                'SSA': 'ssa.nc',
-                'T2': 't2.nc',
-            }, ],
-        },
-        'adcirc2015': {
-            'resource_atts': {
-                'url': 'http://sms.aquaveo.com/',
-                'archive': None,  # Uncompressed NetCDF file
-            },
-            'dataset_atts': {
-                'units_multiplier': 1.,  # meter
-            },
-            'consts': [{  # grouped by dimensionally compatible files
-                'M2': 'all_adcirc.nc',
-                'S2': 'all_adcirc.nc',
-                'N2': 'all_adcirc.nc',
-                'K1': 'all_adcirc.nc',
-                'M4': 'all_adcirc.nc',
-                'O1': 'all_adcirc.nc',
-                'M6': 'all_adcirc.nc',
-                'Q1': 'all_adcirc.nc',
-                'K2': 'all_adcirc.nc',
-                'L2': 'all_adcirc.nc',
-                '2N2': 'all_adcirc.nc',
-                'R2': 'all_adcirc.nc',
-                'T2': 'all_adcirc.nc',
-                'LAMBDA2': 'all_adcirc.nc',
-                'MU2': 'all_adcirc.nc',
-                'NU2': 'all_adcirc.nc',
-                'J1': 'all_adcirc.nc',
-                'M1': 'all_adcirc.nc',
-                'OO1': 'all_adcirc.nc',
-                'P1': 'all_adcirc.nc',
-                '2Q1': 'all_adcirc.nc',
-                'RHO1': 'all_adcirc.nc',
-                'M8': 'all_adcirc.nc',
-                'S4': 'all_adcirc.nc',
-                'S6': 'all_adcirc.nc',
-                'M3': 'all_adcirc.nc',
-                'S1': 'all_adcirc.nc',
-                'MK3': 'all_adcirc.nc',
-                '2MK3': 'all_adcirc.nc',
-                'MN4': 'all_adcirc.nc',
-                'MS4': 'all_adcirc.nc',
-                '2SM2': 'all_adcirc.nc',
-                'MF': 'all_adcirc.nc',
-                'MSF': 'all_adcirc.nc',
-                'MM': 'all_adcirc.nc',
-                'SA': 'all_adcirc.nc',
-                'SSA': 'all_adcirc.nc',
-            }, ],
-        },
+        'tpxo7': Tpxo7Resources(),
+        'tpxo8': Tpxo8Resources(),
+        'tpxo9': Tpxo9Resources(),
+        'leprovost': LeProvostResources(),
+        'fes2014': FES2014Resources(),
+        'adcirc2015': Adcirc2015Resources(),
     }
+    TPXO_MODELS = {'tpxo7', 'tpxo8', 'tpxo9'}
+    LEPROVOST_MODELS = {'fes2014', 'leprovost'}
+    ADCIRC_MODELS = {'adcirc2015'}
     DEFAULT_RESOURCE = 'tpxo9'
 
     def __init__(self, model=DEFAULT_RESOURCE):
@@ -229,18 +368,17 @@ class ResourceManager(object):
             d.close()
 
     def available_constituents(self):
-        # get keys from const groups as list of lists and flatten
-        return [c for sl in [grp.keys() for grp in self.model_atts['consts']] for c in sl]
+        return self.model_atts.available_constituents()
 
     def get_units_multiplier(self):
-        return self.model_atts['dataset_atts']['units_multiplier']
+        return self.model_atts.dataset_attributes()['units_multiplier']
 
     def download(self, resource, destination_dir):
         """Download a specified model resource."""
         if not os.path.isdir(destination_dir):
             os.makedirs(destination_dir)
 
-        rsrc_atts = self.model_atts['resource_atts']
+        rsrc_atts = self.model_atts.resource_attributes()
         url = rsrc_atts['url']
         # Check if we can download resources for this model.
         if url is None:
@@ -261,7 +399,10 @@ class ResourceManager(object):
                     except IOError as e:
                         print(str(e))
                     else:
-                        rsrcs = set(c for sl in [x.values() for x in self.model_atts['consts']] for c in sl)
+                        rsrcs = set(
+                            self.model_atts.constituent_resource(con) for con in
+                            self.model_atts.available_constituents()
+                        )
                         tar.extractall(path=destination_dir, members=[m for m in tar.getmembers() if m.name in rsrcs])
                         tar.close()
                 elif rsrc_atts['archive'] == 'zip':  # Unzip .zip files
@@ -283,7 +424,10 @@ class ResourceManager(object):
 
     def download_model(self, resource_dir=None):
         """Download all of the model's resources for later use."""
-        resources = set(r for sl in [grp.values() for grp in self.model_atts['consts']] for r in sl)
+        resources = set(
+            self.model_atts.constituent_resource(con) for con in
+            self.model_atts.available_constituents()
+        )
         if not resource_dir:
             resource_dir = os.path.join(config['data_dir'], self.model)
         for r in resources:
@@ -307,8 +451,8 @@ class ResourceManager(object):
             raise ValueError('Constituent not recognized.')
         # handle compatible files together
         self.datasets = []
-        for const_group in self.model_atts['consts']:
-            rsrcs = set(const_group[const] for const in set(constituents) & set(const_group))
+        for const_group in self.model_atts.constituent_groups():
+            rsrcs = set(self.model_atts.constituent_resource(const) for const in set(constituents) & set(const_group))
 
             paths = set()
             if config['pre_existing_data_dir']:

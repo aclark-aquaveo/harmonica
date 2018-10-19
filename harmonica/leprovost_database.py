@@ -10,21 +10,31 @@ import os
 
 import pandas as pd
 
+from .resource import ResourceManager
 from .tidal_database import convert_coords, get_complex_components, NOAA_SPEEDS, TidalDB
+
+
+DEFAULT_LEPROVOST_RESOURCE = 'leprovost'
 
 
 class LeProvostDB(TidalDB):
     """Extractor class for the LeProvost tidal database.
 
     """
-    def __init__(self, model="leprovost"):
+    def __init__(self, model=DEFAULT_LEPROVOST_RESOURCE):
         """Constructor for the LeProvost tidal database extractor.
 
+
+        Args:
+            model (:obj:`str`, optional): Name of the LeProvost tidal database version. Defaults to the freely
+                distributed but outdated 'leprovost' version. See resource.py for additional supported models.
+
         """
-        # Make sure this is a valid LeProvost version ('leprovost' or 'fes2014')
-        if model.lower() not in ['leprovost', 'fes2014']:
-            raise ValueError("{} is not a supported LeProvost model. Must be 'leprovost' or 'fes2014'.")
-        # self.debugger = open("debug.txt", "w")
+        model = model.lower()  # Be case-insensitive
+        if model not in ResourceManager.LEPROVOST_MODELS:  # Check for valid LeProvost model
+            raise ValueError("\'{}\' is not a supported LeProvost model. Must be one of: {}.".format(
+                model, ", ".join(ResourceManager.LEPROVOST_MODELS).strip()
+            ))
         super().__init__(model)
 
     def get_components(self, locs, cons=None, positive_ph=False):
@@ -37,8 +47,6 @@ class LeProvostDB(TidalDB):
                 not supplied, all valid constituents will be extracted.
             positive_ph (bool, optional): Indicate if the returned phase should be all positive [0 360] (True) or
                 [-180 180] (False, the default).
-                        model (:obj:`str`, optional): Name of the tidal model to use to query for the data. If not provided, current
-                model will be used. If a model other than the current is provided, current model is switched.
 
         Returns:
            :obj:`list` of :obj:`pandas.DataFrame`: A list of dataframes of constituent information including
@@ -59,7 +67,7 @@ class LeProvostDB(TidalDB):
             return self  # ERROR: Not in latitude/longitude
 
         self.data = [pd.DataFrame(columns=['amplitude', 'phase', 'speed']) for _ in range(len(locs))]
-        dataset_atts = self.resources.model_atts['dataset_atts']
+        dataset_atts = self.resources.model_atts.dataset_attributes()
 
         n_lat = dataset_atts['num_lats']
         n_lon = dataset_atts['num_lons']
@@ -69,9 +77,9 @@ class LeProvostDB(TidalDB):
         d_lon = 360.0 / n_lon
 
         for file_idx, d in enumerate(self.resources.get_datasets(cons)):
-            if self.model == 'leprovost':
+            if self.model == 'leprovost':  # All constituents in one file with constituent name dataset.
                 nc_names = [x.strip().upper() for x in d.spectrum.values[0]]
-            else:
+            else:  # FES2014 has seperate files for each constituent with no constituent name dataset.
                 # TODO: Probably need to find a better way to get the constituent name. _file_obj is undocumented, so
                 # TODO:     there is no guarantee this functionality will be maintained.
                 nc_names = [os.path.splitext(os.path.basename(dset.ds.filepath()))[0].upper() for
@@ -138,7 +146,7 @@ class LeProvostDB(TidalDB):
                             phases=[xlo_yhi_phase, xhi_yhi_phase, xlo_ylo_phase, xhi_ylo_phase],
                         )
 
-                        # Perform bi-linear interpolation of the corners to the target point.
+                        # Perform bi-linear interpolation from the four cell corners to the target point.
                         xcos = 0.0
                         xsin = 0.0
                         denom = 0.0
@@ -158,11 +166,11 @@ class LeProvostDB(TidalDB):
                             xcos = xcos + complex_comps[3][0] * (1.0 - yratio) * xratio
                             xsin = xsin + complex_comps[3][1] * (1.0 - yratio) * xratio
                             denom = denom + (1.0 - yratio) * xratio
-
                         xcos = xcos / denom
                         xsin = xsin / denom
-
                         amp = math.sqrt(xcos * xcos + xsin * xsin)
+
+                        # Compute interpolated phase
                         phase = math.degrees(math.acos(xcos / amp))
                         amp /= 100.0
                         if xsin < 0.0:

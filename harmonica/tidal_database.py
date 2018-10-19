@@ -145,44 +145,19 @@ class TidalDB(object):
         """Base class constructor for the tidal extractors
 
         Args:
-            model (str): The name of the model. One of 'tpxo9', 'tpxo8', 'tpxo7', 'leprovost, or 'adcirc2015'
+            model (str): The name of the model. See resource.py for supported models.
 
         """
         self.orbit = OrbitVariables()
+        # constituent information dataframe:
+        #   amplitude (meters)
+        #   phase (degrees)
+        #   speed (degrees/hour, UTC/GMT)
         self.data = []
-        self.resources = None
-        self._model = None
-        self.change_model(model)
+        self.model = model
+        self.resources = ResourceManager(self.model)
 
     __metaclass__ = ABCMeta
-
-    @property
-    def model(self):
-        """str: The name of the model. One of 'tpxo9', 'tpxo8', 'tpxo7', 'leprovost', or 'adcirc2015'
-
-        When setting the model to a different one than the current, required resources are downloaded.
-
-        """
-        return self._model
-
-    @model.setter
-    def model(self, value):
-        self.change_model(value)
-
-    def change_model(self, model):
-        """Change the extractor model. If different than the current, required resources are downloaded.
-
-        Args:
-            model (str): The name of the model. One of: 'tpxo9', 'tpxo8', 'tpxo7', 'leprovost, or 'adcirc2015'
-
-        """
-        model = model.lower()
-        if model == 'tpxo7_2':
-            model = 'tpxo7'
-
-        if model != self._model:
-            self._model = model
-            self.resources = ResourceManager(self._model)
 
     @abstractmethod
     def get_components(self, locs, cons, positive_ph):
