@@ -37,7 +37,7 @@ In addition to the points of interest, create a list of constituents to query fo
    :lineno-match:
 
 Next, construct the tidal constituent extractor interface. This example starts out by
-using the 'leprovost' model. 'tpxo8' is the default model used when none is specified.
+using the 'leprovost' model. 'tpxo9' is the default model used when none is specified.
 
 .. literalinclude:: ../../tutorials/python_api/test.py
    :lines: 15-15
