@@ -20,6 +20,7 @@ install_requires = [
     'pandas',
     'toolz',
     'xarray',
+    'xmsinterp>=3.0.1'
 ]
 
 extras_require = {
@@ -69,5 +70,5 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
-    python_requires="!=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+    python_requires="!=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 )
