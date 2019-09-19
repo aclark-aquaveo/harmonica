@@ -1,6 +1,10 @@
 #!/usr/bin/env python
+import os
 import versioneer
 from setuptools import setup
+
+# allow setup.py to be run from any path
+os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 # Don't proceed with 'unknown' in version
 version_dict = versioneer.get_versions()
@@ -9,10 +13,12 @@ if version_dict['error']:
 
 install_requires = [
     'argparse',
-    'pytides',
+    'dask',
+    'pytides',  # Does not install correctly
     'netCDF4',
     'numpy',
     'pandas',
+    'toolz',
     'xarray',
 ]
 
