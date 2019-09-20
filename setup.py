@@ -14,13 +14,13 @@ if version_dict['error']:
 install_requires = [
     'argparse',
     'dask',
-    'pytides',  # Does not install correctly
+    'pytides',  # Does not install correctly, I can install from source, but this needs to be fixed
     'netCDF4',
     'numpy',
     'pandas',
     'toolz',
     'xarray',
-    'xmsinterp>=3.0.1'
+    'xmsgrid>=3.0.1'
 ]
 
 extras_require = {
