@@ -9,6 +9,9 @@ import xarray as xr
 from harmonica import config
 
 
+MAX_NUM_CONS = 37  # Maximum number of constituents in all available models
+
+
 class Resources(object):
     """Abstract base class for model resources
 

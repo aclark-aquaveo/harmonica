@@ -32,6 +32,7 @@ class Constituents:
 
     @data.setter
     def data(self, value):
+        """Set the underlying dataframe of the current model"""
         if self._current_model:
             self._current_model.data = value
 

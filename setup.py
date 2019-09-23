@@ -1,6 +1,10 @@
 #!/usr/bin/env python
+import os
 import versioneer
 from setuptools import setup
+
+# allow setup.py to be run from any path
+os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 # Don't proceed with 'unknown' in version
 version_dict = versioneer.get_versions()
@@ -9,11 +13,14 @@ if version_dict['error']:
 
 install_requires = [
     'argparse',
-    'pytides',
+    'dask',
+    'pytides',  # Does not install correctly, I can install from source, but this needs to be fixed
     'netCDF4',
     'numpy',
     'pandas',
+    'toolz',
     'xarray',
+    'xmsgrid>=3.0.1'
 ]
 
 extras_require = {
@@ -46,7 +53,10 @@ setup(
     maintainer="ERS Environmental Simulation",
     url='https://github.com/erdc/harmonica',
     packages=['harmonica', 'harmonica.cli'],
-    #scripts=[],
+    dependency_links=[
+        'https://aquapi.aquaveo.com/aquaveo/stable/',
+        'https://public.aquapi.aquaveo.com/aquaveo/stable/',
+    ],
     entry_points={
         'console_scripts': entry_points
     },
@@ -63,5 +73,5 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
-    python_requires="!=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+    python_requires="!=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 )

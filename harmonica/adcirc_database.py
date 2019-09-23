@@ -4,7 +4,7 @@ import math
 
 import numpy
 import pandas as pd
-import xmsinterp_py
+from xms.grid.geometry.tri_search import TriSearch
 
 from .resource import ResourceManager
 from .tidal_database import convert_coords, get_complex_components, NOAA_SPEEDS, TidalDB
@@ -65,18 +65,17 @@ class AdcircDB(TidalDB):
 
         # Step 1: read the file and get geometry:
         con_dsets = self.resources.get_datasets(cons)[0]
-        tri_search = xmsinterp_py.geometry.GmTriSearch()
         con_x = con_dsets.x[0].values
         con_y = con_dsets.y[0].values
 
         mesh_pts = [(float(con_x[idx]), float(con_y[idx]), 0.0) for idx in range(len(con_x))]
         tri_list = con_dsets.element.values.flatten().tolist()
-        tri_search.tris_to_search(mesh_pts, tri_list)
+        tri_search = TriSearch(mesh_pts, tri_list)
 
         points_and_weights = []
         for i, pt in enumerate(locs):
             pt_flip = (pt[1], pt[0])
-            tri_idx = tri_search.tri_containing_pt(pt_flip)
+            tri_idx = tri_search.triangle_containing_point(pt_flip)
             if tri_idx != -1:
                 pt_1 = int(tri_list[tri_idx])
                 pt_2 = int(tri_list[tri_idx+1])
