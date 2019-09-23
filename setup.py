@@ -53,7 +53,10 @@ setup(
     maintainer="ERS Environmental Simulation",
     url='https://github.com/erdc/harmonica',
     packages=['harmonica', 'harmonica.cli'],
-    #scripts=[],
+    dependency_links=[
+        'https://aquapi.aquaveo.com/aquaveo/stable/',
+        'https://public.aquapi.aquaveo.com/aquaveo/stable/',
+    ],
     entry_points={
         'console_scripts': entry_points
     },
