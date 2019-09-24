@@ -1,33 +1,33 @@
 #!/usr/bin/env python
 import os
-import versioneer
+# import versioneer
 from setuptools import setup
 
 # allow setup.py to be run from any path
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 # Don't proceed with 'unknown' in version
-version_dict = versioneer.get_versions()
-if version_dict['error']:
-    raise RuntimeError(version_dict["error"])
+# version_dict = versioneer.get_versions()
+# if version_dict['error']:
+#    raise RuntimeError(version_dict["error"])
 
 install_requires = [
     'argparse',
     'dask',
-    'pytides',  # Does not install correctly, I can install from source, but this needs to be fixed
+    'pytides>=0.0.4',  # ERDC fork packaged by Aquaveo
     'netCDF4',
     'numpy',
     'pandas',
     'toolz',
     'xarray',
-    'xmsgrid>=3.0.1'
+    'xmsgrid>=3.0.1',
 ]
 
 extras_require = {
-    'build' : [
+    'build': [
         'setuptools',
     ],
-    'tests' : [],
+    'tests': [],
 }
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
@@ -40,10 +40,16 @@ entry_points = [
     'harmonica-resources = harmonica.cli.main_resources:main',
 ]
 
+
+version = '0.0.1'
+# version_dict['version'] = version
+
+
 setup(
     name='harmonica',
-    version=version_dict['version'],
-    cmdclass=versioneer.get_cmdclass(),
+    # version=version_dict['version'],
+    version=version,
+    # cmdclass=versioneer.get_cmdclass(),
     description="Worldwide amplitude, phase, and speed for standard tidal constituents and tidal time series " \
         "reconstruction and deconstruction.",
     long_description=open('README.md').read(),
@@ -54,8 +60,9 @@ setup(
     url='https://github.com/erdc/harmonica',
     packages=['harmonica', 'harmonica.cli'],
     dependency_links=[
-        'https://aquapi.aquaveo.com/aquaveo/stable/',
-        'https://public.aquapi.aquaveo.com/aquaveo/stable/',
+        'https://public.aquapi.aquaveo.com/aquaveo/stable'
+        'https://public.aquapi.aquaveo.com/aquaveo/stable/pytides',
+        'https://public.aquapi.aquaveo.com/aquaveo/stable/xmsgrid',
     ],
     entry_points={
         'console_scripts': entry_points
