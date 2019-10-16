@@ -65,11 +65,11 @@ class AdcircDB(TidalDB):
 
         # Step 1: read the file and get geometry:
         con_dsets = self.resources.get_datasets(cons)[0]
-        con_x = con_dsets.x[0].values
-        con_y = con_dsets.y[0].values
+        con_x = con_dsets[0].x.values
+        con_y = con_dsets[0].y.values
 
         mesh_pts = [(float(con_x[idx]), float(con_y[idx]), 0.0) for idx in range(len(con_x))]
-        tri_list = con_dsets.element.values.flatten().tolist()
+        tri_list = con_dsets[0].element.values.flatten().tolist()
         tri_search = TriSearch(mesh_pts, tri_list)
 
         points_and_weights = []
@@ -98,8 +98,8 @@ class AdcircDB(TidalDB):
         for con in cons:
             con_amp_name = con + "_amplitude"
             con_pha_name = con + "_phase"
-            con_amp = con_dsets[con_amp_name][0]
-            con_pha = con_dsets[con_pha_name][0]
+            con_amp = con_dsets[0][con_amp_name]
+            con_pha = con_dsets[0][con_pha_name]
             for i, pts, weights in points_and_weights:
                 amps = [float(con_amp[pts[0]]), float(con_amp[pts[1]]), float(con_amp[pts[2]])]
                 phases = [

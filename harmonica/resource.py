@@ -368,7 +368,8 @@ class ResourceManager(object):
 
     def __del__(self):
         for d in self.datasets:
-            d.close()
+            for dset in d:
+                dset.close()
 
     def available_constituents(self):
         return self.model_atts.available_constituents()
@@ -465,7 +466,7 @@ class ResourceManager(object):
                     paths.add(path) if os.path.exists(path) else missing.add(r)
                 rsrcs = missing
                 if not rsrcs and paths:
-                    self.datasets.append(xr.open_mfdataset(paths, engine='netcdf4', concat_dim='nc'))
+                    self.datasets.append(xr.open_mfdataset(paths, engine='netcdf4', combine='nested', concat_dim='nc'))
                     continue
 
             resource_dir = os.path.join(config['data_dir'], self.model)
@@ -476,6 +477,6 @@ class ResourceManager(object):
                 paths.add(path)
 
             if paths:
-                self.datasets.append(xr.open_mfdataset(paths, engine='netcdf4', concat_dim='nc'))
+                self.datasets.append([xr.open_dataset(path) for path in paths])
 
         return self.datasets
