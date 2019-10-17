@@ -70,6 +70,7 @@ setup(
     install_requires=install_requires,
     extras_require=extras_require,
     tests_require=extras_require['tests'],
+    test_suite='tests',
     keywords='harmonica',
     classifiers=[
         'Development Status :: 3 - Alpha',
