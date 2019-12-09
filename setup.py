@@ -20,7 +20,7 @@ install_requires = [
     'pandas',
     'toolz',
     'xarray',
-    'xmsgrid>=3.0.1',
+    'xmsgrid>=4.2.0',
 ]
 
 extras_require = {
@@ -41,7 +41,7 @@ entry_points = [
 ]
 
 
-version = '0.0.1'
+version = '0.1.1'
 # version_dict['version'] = version
 
 
