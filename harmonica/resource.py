@@ -75,40 +75,6 @@ class Resources(object):
         return None
 
 
-class Tpxo7Resources(Resources):
-    """TPXO7 resources
-
-    """
-    TPXO7_CONS = {'K1', 'K2', 'M2', 'M4', 'MF', 'MM', 'MN4', 'MS4', 'N2', 'O1', 'P1', 'Q1', 'S2'}
-    DEFAULT_RESOURCE_FILE = 'DATA/h_tpxo7.2.nc'
-
-    def __init__(self):
-        super().__init__()
-
-    def resource_attributes(self):
-        return {
-            'url': 'ftp://ftp.oce.orst.edu/dist/tides/Global/tpxo7.2_netcdf.tar.Z',
-            'archive': 'gz',  # gzip compression
-        }
-
-    def dataset_attributes(self):
-        return {
-            'units_multiplier': 1.0,  # meter
-        }
-
-    def available_constituents(self):
-        return self.TPXO7_CONS
-
-    def constituent_groups(self):
-        return [self.available_constituents()]
-
-    def constituent_resource(self, con):
-        if con.upper() in self.TPXO7_CONS:
-            return self.DEFAULT_RESOURCE_FILE
-        else:
-            return None
-
-
 class Tpxo8Resources(Resources):
     """TPXO8 resources
 
@@ -138,7 +104,7 @@ class Tpxo8Resources(Resources):
 
     def resource_attributes(self):
         return {
-            'url': "ftp://ftp.oce.orst.edu/dist/tides/TPXO8_atlas_30_v1_nc/",
+            'url': None,  # Resources must already exist. Licensing restrictions prevent hosting files.
             'archive': None,
         }
 
@@ -174,7 +140,7 @@ class Tpxo9Resources(Resources):
 
     def resource_attributes(self):
         return {
-            'url': "ftp://ftp.oce.orst.edu/dist/tides/Global/tpxo9_netcdf.tar.gz",
+            'url': None,  # Resources must already exist. Licensing restrictions prevent hosting files.
             'archive': 'gz',
         }
 
@@ -347,14 +313,13 @@ class ResourceManager(object):
     """Harmonica resource manager to retrieve and access tide models"""
 
     RESOURCES = {
-        'tpxo7': Tpxo7Resources(),
         'tpxo8': Tpxo8Resources(),
         'tpxo9': Tpxo9Resources(),
         'leprovost': LeProvostResources(),
         'fes2014': FES2014Resources(),
         'adcirc2015': Adcirc2015Resources(),
     }
-    TPXO_MODELS = {'tpxo7', 'tpxo8', 'tpxo9'}
+    TPXO_MODELS = {'tpxo8', 'tpxo9'}
     LEPROVOST_MODELS = {'fes2014', 'leprovost'}
     ADCIRC_MODELS = {'adcirc2015'}
     DEFAULT_RESOURCE = 'tpxo9'
@@ -368,7 +333,8 @@ class ResourceManager(object):
 
     def __del__(self):
         for d in self.datasets:
-            d.close()
+            for dset in d:
+                dset.close()
 
     def available_constituents(self):
         return self.model_atts.available_constituents()
@@ -465,7 +431,7 @@ class ResourceManager(object):
                     paths.add(path) if os.path.exists(path) else missing.add(r)
                 rsrcs = missing
                 if not rsrcs and paths:
-                    self.datasets.append(xr.open_mfdataset(paths, engine='netcdf4', concat_dim='nc'))
+                    self.datasets.append([xr.open_dataset(path) for path in paths])
                     continue
 
             resource_dir = os.path.join(config['data_dir'], self.model)
@@ -476,6 +442,6 @@ class ResourceManager(object):
                 paths.add(path)
 
             if paths:
-                self.datasets.append(xr.open_mfdataset(paths, engine='netcdf4', concat_dim='nc'))
+                self.datasets.append([xr.open_dataset(path) for path in paths])
 
         return self.datasets

@@ -76,17 +76,14 @@ class LeProvostDB(TidalDB):
         d_lat = 180.0 / (n_lat - 1)
         d_lon = 360.0 / n_lon
 
-        for file_idx, d in enumerate(self.resources.get_datasets(cons)):
+        for d in self.resources.get_datasets(cons):
             if self.model == 'leprovost':  # All constituents in one file with constituent name dataset.
-                nc_names = [x.strip().upper() for x in d.spectrum.values[0]]
+                nc_names = [x.strip().upper() for x in d[0].spectrum.data.tolist()]
             else:  # FES2014 has seperate files for each constituent with no constituent name dataset.
                 # TODO: Probably need to find a better way to get the constituent name. _file_obj is undocumented, so
                 # TODO:     there is no guarantee this functionality will be maintained.
-                nc_names = [os.path.splitext(os.path.basename(dset.ds.filepath()))[0].upper() for
-                            dset in d._file_obj.file_objs]
-            for con in set(cons) & set(nc_names):
-                # Extract components for each point for this constituent
-                con_idx = nc_names.index(con)
+                nc_names = [os.path.splitext(os.path.basename(dset._file_obj._filename))[0].upper() for dset in d]
+            for con_idx, con in enumerate(set(cons) & set(nc_names)):
                 for i, pt in enumerate(locs):
                     y_lat, x_lon = pt  # lat,lon not x,y
                     xlo = int((x_lon - lon_min) / d_lon) + 1
@@ -108,27 +105,27 @@ class LeProvostDB(TidalDB):
                             or ylo < 0):
                         skip = True
                     else:  # Make sure we have at least one neighbor with an active amplitude value.
-                        if self.model == 'leprovost':  # All constituents in single file
-                            amp_dset = d.amplitude[0]
-                            phase_dset = d.phase[0]
-                        else:  # FES 2014 format - file per constituent
-                            amp_dset = d.amplitude
-                            phase_dset = d.phase
+                        if self.model == 'leprovost':
+                            amp_dset = d[0].amplitude[con_idx]
+                            phase_dset = d[0].phase[con_idx]
+                        else:
+                            amp_dset = d[con_idx].amplitude
+                            phase_dset = d[con_idx].phase
 
                         # Read potential contributing amplitudes from the file.
-                        xlo_yhi_amp = amp_dset[con_idx][yhi][xlo]
-                        xlo_ylo_amp = amp_dset[con_idx][ylo][xlo]
-                        xhi_yhi_amp = amp_dset[con_idx][yhi][xhi]
-                        xhi_ylo_amp = amp_dset[con_idx][ylo][xhi]
+                        xlo_yhi_amp = amp_dset[yhi][xlo]
+                        xlo_ylo_amp = amp_dset[ylo][xlo]
+                        xhi_yhi_amp = amp_dset[yhi][xhi]
+                        xhi_ylo_amp = amp_dset[ylo][xhi]
                         if (numpy.isnan(xlo_yhi_amp) and numpy.isnan(xhi_yhi_amp) and
                                 numpy.isnan(xlo_ylo_amp) and numpy.isnan(xhi_ylo_amp)):
                             skip = True
                         else:  # Make sure we have at least one neighbor with an active phase value.
                             # Read potential contributing phases from the file.
-                            xlo_yhi_phase = math.radians(phase_dset[con_idx][yhi][xlo])
-                            xlo_ylo_phase = math.radians(phase_dset[con_idx][ylo][xlo])
-                            xhi_yhi_phase = math.radians(phase_dset[con_idx][yhi][xhi])
-                            xhi_ylo_phase = math.radians(phase_dset[con_idx][ylo][xhi])
+                            xlo_yhi_phase = math.radians(phase_dset[yhi][xlo])
+                            xlo_ylo_phase = math.radians(phase_dset[ylo][xlo])
+                            xhi_yhi_phase = math.radians(phase_dset[yhi][xhi])
+                            xhi_ylo_phase = math.radians(phase_dset[ylo][xhi])
                             if (numpy.isnan(xlo_yhi_phase) and numpy.isnan(xhi_yhi_phase) and
                                     numpy.isnan(xlo_ylo_phase) and numpy.isnan(xhi_ylo_phase)):
                                 skip = True

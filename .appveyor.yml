@@ -1,0 +1,37 @@
+build: false
+version: 1.0.0-{build}  # This version is somewhat arbitrary. Does not affect the version of the package.
+
+environment:
+    PYTHON: "C:\\Python36-x64"
+    PYTHON_ARCH: 64
+    PYTHON_VERSION: 3.6
+    RELEASE_PYTHON: 'False'
+    PYTHON_TARGET_VERSION: ${PYTHON_VERSION}
+    XMS_VERSION: ${APPVEYOR_REPO_TAG_NAME}
+    AQUAPI_USERNAME: ${AQUAPI_USERNAME_SECRET}
+    AQUAPI_PASSWORD: ${AQUAPI_PASSWORD_SECRET}
+    AQUAPI_URL: ${AQUAPI_URL_SECRET}
+
+    matrix:
+        - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+          CONAN_VISUAL_VERSIONS: 14
+          CONAN_BUILD_TYPES: Release
+          CONAN_ARCHS: x86_64
+
+
+install:
+  - SET PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+  - pip.exe install wheel devpi-client
+
+build_script:
+  # Set conditional ENVs
+  - ps: |
+      if ($env:APPVEYOR_REPO_TAG -eq 'false') {
+        $env:XMS_VERSION = 'Dev'
+      } else {
+        $env:XMS_VERSION = $env:APPVEYOR_REPO_TAG_NAME
+        $env:RELEASE_PYTHON = 'True'
+      }
+      echo 'XMS_VERSION: '+$env:XMS_VERSION
+      echo 'RELEASE_PYTHON: '+$env:RELEASE_PYTHON
+  - python build.py
